@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Chakra Petch', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* NIKI Sprite Walk Animation (12 frames, 100x160px) */
+.capri-sprite-walk {
+  width: 100px;
+  height: 160px;
+  background-image: url('/niki/walk.png');
+  background-repeat: no-repeat;
+  background-size: 1200px 160px;
+  image-rendering: pixelated;
+  animation: capri-walk-steps 0.9s steps(12) infinite;
+}
+
+@keyframes capri-walk-steps {
+  from { background-position: 0px 0; }
+  to { background-position: -1200px 0; }
+}
+
+/* Floating Zzz animation for Sleep mode */
+@keyframes float-zzz {
+  0% { transform: translateY(0px) scale(0.8); opacity: 0; }
+  50% { opacity: 0.9; }
+  100% { transform: translateY(-35px) scale(1.3); opacity: 0; }
+}
+
+.animate-zzz-1 {
+  animation: float-zzz 2.4s ease-in-out infinite;
+}
+.animate-zzz-2 {
+  animation: float-zzz 2.4s ease-in-out 0.8s infinite;
+}
+.animate-zzz-3 {
+  animation: float-zzz 2.4s ease-in-out 1.6s infinite;
+}
+
+@keyframes cyber-pulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(56, 189, 248, 0.45); }
+}
+
+.cyber-glow {
+  animation: cyber-pulse 3s infinite ease-in-out;
+}
+@keyframes face-scan-sweep {
+  from { top: 0; }
+  to { top: calc(100% - 4px); }
+}
+.face-scan-sweep { animation: face-scan-sweep 1.25s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) {
+  .face-scan-sweep { animation: none; top: 50%; }
+}
