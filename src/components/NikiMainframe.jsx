@@ -13,8 +13,6 @@ export default function NikiMainframe({
   setCapriMessage,
   playVoice,
   openTerminal,
-  setHasDownloadedCaseFiles,
-  openExplorer,
   isPerchedOnWindow,
   setIsPerchedOnWindow,
 }) {
@@ -380,18 +378,6 @@ export default function NikiMainframe({
                         className="p-2 bg-slate-900 hover:bg-slate-800 border border-cyan-800/60 rounded text-cyan-300 text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         💻 เปิด Terminal
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setHasDownloadedCaseFiles(true);
-                          setIsMainframeOpen(false);
-                          setCapriMessage('ฉันโหลด Case_Files มาลงหน้าเว็บให้เรียบร้อยแล้วชูม!');
-                          openExplorer();
-                        }}
-                        className="p-2 bg-slate-900 hover:bg-slate-800 border border-emerald-800/60 rounded text-emerald-300 text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        📥 ดาวน์โหลดคดี
                       </button>
                       <button
                         type="button"

@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useGameState } from './hooks/useGameState';
 import LinuxDesktop from './components/LinuxDesktop';
+import { initialNikiMessage } from './services/policeCall';
 
 export default function App() {
-  const [gameState, setGameState] = useState('IDLE'); // 'IDLE' | 'PROMPT_CHOICE' | 'ACTIVE' | 'CASE_CLOSED' | 'CASE_ABORTED'
+  const [gameState, setGameState] = useGameState('gameState', 'IDLE'); // 'IDLE' | 'PROMPT_CHOICE' | 'ACTIVE' | 'CASE_CLOSED' | 'CASE_ABORTED'
 
-  const [chatLogs, setChatLogs] = useState([
+  const [chatLogs, setChatLogs] = useGameState('chatLogs', [
     {
       sender: 'NIKI',
       time: '14:22:00',
-      text: 'ไงชูม! ฉัน NIKI ตัวแม่แห่งไซเบอร์สเปซ สแตนด์บายอยู่บนเดสก์ท็อปแล้ว มีอะไรชวนคุยเล่นหรืออยากให้ช่วยมั้ย?',
+      text: initialNikiMessage,
       isPrompt: false,
     },
   ]);
@@ -18,7 +19,7 @@ export default function App() {
     return now.toTimeString().split(' ')[0];
   };
 
-  // เมื่อมีคดีแจ้งเตือนส่งมาจากสารวัตรภัทร (เมื่อผู้เล่นหยุดคุยหรือไม่ได้เริ่มคุย)
+  // เมื่อมีคดีแจ้งเตือนส่งมาจากสายสืบภัทรวัฒน์ อนันต์กุล (เมื่อผู้เล่นหยุดคุยหรือไม่ได้เริ่มคุย)
   const handleIncomingCase = () => {
     setGameState('PROMPT_CHOICE');
     setChatLogs((prev) => [
@@ -26,13 +27,13 @@ export default function App() {
       {
         sender: 'INSP. PHATTARA',
         time: getTimeString(),
-        text: 'Shoom! มีคดีเอกสารสำคัญหายจากห้องเก็บหลักฐาน ผมอยากให้คุณกับ NIKI ช่วยตรวจภาพจากกล้อง คุณจะรับคดีนี้มั้ย?',
+        text: 'สายสืบภัทรวัฒน์ อนันต์กุลกำลังโทรหาเจ้าหน้าที่สายด่วน',
         isPrompt: true,
       },
       {
         sender: 'NIKI',
         time: getTimeString(),
-        text: 'ชูม! สารวัตรภัทรมีคดีเอกสารสำคัญหาย อยากให้เราช่วยตรวจภาพจากกล้องวงจรปิด ชูมจะรับคดีนี้มั้ย?',
+        text: 'ชูม สายสืบภัทรวัฒน์ อนันต์กุลโทรเข้ามาแล้ว กดรับสายได้เลย',
         isPrompt: false,
       },
     ]);
@@ -46,12 +47,12 @@ export default function App() {
       {
         sender: 'SHOOM',
         time: getTimeString(),
-        text: typeof playerText === 'string' && playerText ? playerText : 'รับคำขอแล้ว เริ่มตรวจสอบภาพหลักฐานจากกล้องวงจรปิด',
+        text: typeof playerText === 'string' && playerText ? playerText : 'รับสายจากสายสืบภัทรวัฒน์ อนันต์กุล',
       },
       {
         sender: 'NIKI',
         time: getTimeString(),
-        text: 'จัดไปชูม! เปิด Terminal แล้วไปรับภาพหลักฐานจากสารวัตรกันเลย!',
+        text: 'รับสายแล้วชูม ฉันจะอยู่ตรงนี้ถ้าต้องการความช่วยเหลือ',
       },
     ]);
   };
@@ -99,17 +100,17 @@ export default function App() {
       {
         sender: 'SHOOM',
         time: getTimeString(),
-        text: 'ส่งผลเปรียบเทียบภาพให้สารวัตรภัทรตรวจสอบต่อแล้ว',
+        text: 'ส่งผลเปรียบเทียบภาพให้สายสืบภัทรวัฒน์ อนันต์กุลตรวจสอบต่อแล้ว',
       },
       {
         sender: 'INSP. PHATTARA',
         time: getTimeString(),
-        text: 'ขอบคุณ Shoom และ NIKI มาก! ผมจะนำเบาะแสนี้ไปตรวจสอบร่วมกับหลักฐานอื่นต่อ',
+        text: 'ขอบคุณมากครับเจ้าหน้าที่ ผมจะนำเบาะแสนี้ไปตรวจสอบต่อ',
       },
       {
         sender: 'NIKI',
         time: getTimeString(),
-        text: '🎉 พรีมสุดๆ ชูม! ส่งเบาะแสให้สารวัตรภัทรเรียบร้อยแล้ว! (CASE CLOSED)',
+        text: '🎉 พรีมสุดๆ ชูม! ส่งเบาะแสให้สายสืบภัทรวัฒน์ อนันต์กุลเรียบร้อยแล้ว! (CASE CLOSED)',
       },
     ]);
   };

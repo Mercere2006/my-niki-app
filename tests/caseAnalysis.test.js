@@ -5,7 +5,7 @@ import { prepareFaceScan, compareFaceDescriptors, interpretAnalysisReply } from 
 
 test('แฟ้มคดีมีภาพกล้องสำหรับสแกน', () => {
   const cctv = caseFiles.filter((file) => file.kind === 'cctv');
-  assert.equal(cctv.length, 1);
+  assert.equal(cctv.length, 2);
   assert.ok(cctv[0].imageUrl?.startsWith('/cases/'));
 });
 
@@ -32,8 +32,20 @@ test('เข้าใจคำตอบรับและปฏิเสธโ�
   assert.equal(interpretAnalysisReply('เอาสิ', false), 'other');
 });
 
-test('เมื่อสารวัตรออกจากการสนทนา ข้อความคุยเล่นไม่เริ่มสแกนซ้ำ', () => {
+test('เมื่อสายสืบออกจากการสนทนา ข้อความคุยเล่นไม่เริ่มสแกนซ้ำ', () => {
   assert.equal(interpretAnalysisReply('เราสแกนเสร็จแล้วนะ', false, 'complete'), 'other');
   assert.equal(interpretAnalysisReply('ช่วยสแกนหน่อย', true, 'complete'), 'other');
   assert.equal(interpretAnalysisReply('ช่วยสแกนหน่อย', true, 'idle'), 'accept');
+});
+
+test('เข้าใจคำตอบรับภาษาพูดเมื่อ NIKI เสนอสแกน โดยไม่เข้าใจคำปฏิเสธผิด', () => {
+  for (const text of ['เอาดิ', 'เอาดิครับ', 'เอาดิค่ะ', 'เอาสิ!', 'ได้ดิ', 'ได้เลยครับ', 'ช่วยหน่อยนะ']) {
+    assert.equal(interpretAnalysisReply(text, true, 'idle'), 'accept', text);
+  }
+  for (const text of ['ไม่เอาดิ', 'ยังไม่เอา', 'ไม่ต้องช่วย']) {
+    assert.equal(interpretAnalysisReply(text, true, 'idle'), 'decline', text);
+  }
+  assert.equal(interpretAnalysisReply('เอาดิ', false, 'idle'), 'other');
+  assert.equal(interpretAnalysisReply('เอาดิ', true, 'complete'), 'other');
+  assert.equal(interpretAnalysisReply('เอาดีไหม', true, 'idle'), 'other');
 });

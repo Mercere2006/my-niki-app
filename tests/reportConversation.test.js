@@ -4,16 +4,16 @@ import { initialReportConversation, advanceReportConversation } from '../src/ser
 import { POLICE_PREFIX } from '../src/services/policeConversation.js';
 import * as reportConversation from '../src/services/reportConversation.js';
 
-test('หลังสารวัตรออกจากการสนทนา NIKI รู้ว่าส่งเบาะแสแล้ว', () => {
+test('หลังสายสืบออกจากการสนทนา NIKI รู้ว่าส่งเบาะแสแล้ว', () => {
   assert.equal(reportConversation.getNikiConversationState('ACTIVE', 'address-reply'), 'ACTIVE');
   assert.equal(reportConversation.getNikiConversationState('ACTIVE', 'complete'), 'CASE_CLOSED');
   assert.equal(reportConversation.getNikiConversationState('IDLE', 'idle'), 'IDLE');
 });
 
 test('ต้องเลือกคำร้องที่ตรงกับข้อมูลและลำดับของบทสนทนาก่อนส่ง', () => {
-  assert.equal(reportConversation.canMatchReportTarget('awaiting-name', null, 'name'), false);
-  assert.equal(reportConversation.canMatchReportTarget('awaiting-name', 'name', 'address'), false);
-  assert.equal(reportConversation.canMatchReportTarget('awaiting-name', 'name', 'name'), true);
+  assert.equal(reportConversation.canMatchReportTarget('awaiting-victim', null, 'name'), false);
+  assert.equal(reportConversation.canMatchReportTarget('awaiting-victim', 'name', 'address'), false);
+  assert.equal(reportConversation.canMatchReportTarget('awaiting-victim', 'name', 'name'), true);
   assert.equal(reportConversation.canMatchReportTarget('awaiting-address', 'name', 'name'), false);
   assert.equal(reportConversation.canMatchReportTarget('awaiting-address', 'address', 'address'), true);
   assert.equal(reportConversation.canMatchReportTarget('complete', 'address', 'address'), false);
@@ -34,19 +34,17 @@ function finishMessages(state) {
   return { state, messages };
 }
 
-test('บทสนทนาให้ส่งชื่อก่อนที่อยู่ และสารวัตรออกจากการสนทนาเมื่อจบ', () => {
-  let state = advanceReportConversation(initialReportConversation, 'profile-found');
-  assert.equal(advanceReportConversation(state, 'send-name'), state);
-  let step = finishMessages(state);
-  assert.deepEqual(step.messages, [`${POLICE_PREFIX} ไงคุณแฮ็กเกอร์`, `${POLICE_PREFIX} ได้เรื่องบ้างไหม`]);
-  state = step.state;
-  assert.equal(state.stage, 'awaiting-name');
+test('บทสนทนาให้ส่งชื่อผู้เสียชีวิต คนในภาพ และที่อยู่ตามลำดับก่อนจบสาย', () => {
+  let state = advanceReportConversation(initialReportConversation, 'files-ready');
+  assert.equal(state.stage, 'awaiting-victim');
   assert.equal(advanceReportConversation(state, 'send-address'), state);
-  step = finishMessages(advanceReportConversation(state, 'send-name'));
-  assert.deepEqual(step.messages, [`${POLICE_PREFIX} โอ้ ขอบคุณมากคุณแฮ็กเกอร์`, `${POLICE_PREFIX} ว่าแต่คุณมีที่อยู่ของเขาไหม`]);
+  let step = finishMessages(advanceReportConversation(state, 'send-name'));
+  assert.equal(step.state.stage, 'awaiting-suspect');
+  assert.ok(step.messages.includes(reportConversation.REPORT_SUSPECT_REQUEST));
+  step = finishMessages(advanceReportConversation(step.state, 'send-name'));
   assert.equal(step.state.stage, 'awaiting-address');
+  assert.ok(step.messages.includes(reportConversation.REPORT_ADDRESS_REQUEST));
   step = finishMessages(advanceReportConversation(step.state, 'send-address'));
-  assert.deepEqual(step.messages, [`${POLICE_PREFIX} ขอบคุณมาก`, `${POLICE_PREFIX} ไว้ได้เรื่องยังไงผมจะติดต่อกลับมาใหม่`, '[สารวัตรภัทรได้ออกจากการสนทนา]']);
+  assert.deepEqual(step.messages, [`${POLICE_PREFIX} ขอบคุณมาก`, `${POLICE_PREFIX} ไว้ได้เรื่องยังไงผมจะติดต่อกลับมาใหม่`, '[สายสืบภัทรวัฒน์ อนันต์กุลได้ออกจากการสนทนา]']);
   assert.equal(step.state.stage, 'complete');
-  assert.equal(advanceReportConversation(step.state, 'profile-found'), step.state);
 });

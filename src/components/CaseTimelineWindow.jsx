@@ -19,7 +19,7 @@ export default function CaseTimelineWindow({ isOpen, isMinimized, isActive, onAc
                 <blockquote className="mt-1 border-l border-slate-600 pl-2 text-xs leading-relaxed text-slate-400">“{event.quote}”</blockquote>
               </li>)}
             </ol>
-          ) : <div role="status" className="space-y-3 text-sm text-slate-200"><p>{result?.error || 'เลือกคำขอจากสารวัตรเพื่อสร้างไทม์ไลน์'}</p><button type="button" onClick={onRetry} className="rounded border border-cyan-700 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-950">ลองสร้างอีกครั้ง</button></div>}
+          ) : <div role="status" className="space-y-3 text-sm text-slate-200"><p>{result?.error || 'เลือกคำขอจากสายสืบเพื่อสร้างไทม์ไลน์'}</p><button type="button" onClick={onRetry} className="rounded border border-cyan-700 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-950">ลองสร้างอีกครั้ง</button></div>}
         </div>
         <footer className="flex items-center justify-between gap-3 border-t border-cyan-950 px-5 py-2 text-[11px] text-slate-400"><span>ตรวจสอบรายละเอียดกับหลักฐานต้นทางก่อนสรุป</span>{result?.ok && <button type="button" disabled={loading} onClick={onRetry} className="cursor-pointer text-cyan-300 underline disabled:opacity-50">สร้างใหม่</button>}</footer>
       </div>

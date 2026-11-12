@@ -1,4 +1,5 @@
 import { cardHolderProfile, cameraPerson } from './caseFiles.js';
+import { dashcamPerson } from './caseEnding.js';
 
 // Sample records for the fictional game world; they are not real databases.
 export const people = [{
@@ -22,6 +23,13 @@ export const people = [{
   distinguishingMarks: 'ไม่มีข้อมูล', aliases: 'ไม่มีข้อมูล', bloodType: 'B+',
   maritalStatus: 'โสด', firearmLicense: 'ไม่มีข้อมูล',
   lastKnownAddress: 'เลขที่ 88 ถนนแสงจันทร์\nแขวงศิรานคร เขตศิรานคร จังหวัดศิรานคร 10000',
+}, {
+  ...dashcamPerson,
+  gender: 'ชาย', nationality: 'ไทย', eyeColor: 'น้ำตาล', height: '177 ซม.',
+  dateOfBirth: '8 เมษายน 2533', placeOfBirth: 'กรุงเทพมหานคร',
+  distinguishingMarks: 'ไม่มีข้อมูล', aliases: 'ไม่มีข้อมูล', bloodType: 'A+',
+  maritalStatus: 'โสด', firearmLicense: 'ไม่มีข้อมูล',
+  lastKnownAddress: 'ไม่มีข้อมูล',
 }];
 
 const normalizeName = (value) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('th');

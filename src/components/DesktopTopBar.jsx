@@ -5,10 +5,12 @@ export default function DesktopTopBar({
   setIsMainframeOpen,
   setMainframeTab,
   brainConfig,
-  currentDate,
-  currentTime,
-  isMuted,
-  setIsMuted,
+  isCallOpen,
+  isCallMinimized,
+  activeWindow,
+  openCall,
+  hideCall,
+  unreadPoliceMessage,
 }) {
   return (
       <header className="relative z-30 h-8 bg-slate-950/85 backdrop-blur-md border-b border-cyan-500/30 flex items-center justify-between px-3 text-xs text-slate-300 font-mono shadow-md">
@@ -54,31 +56,17 @@ export default function DesktopTopBar({
           </div>
         </div>
 
-        {/* Center: Live Clock & Sandbox Status */}
+        {/* Center: Sandbox Status */}
         <div className="flex items-center gap-3 text-slate-300 font-semibold tracking-wide">
           <div className="hidden lg:flex items-center gap-1 text-[10px] text-cyan-400 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/50 font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
             NIKI WEB SANDBOX: ACTIVE [HOST RESTRICTED]
           </div>
-          <span>{currentDate}</span>
-          <span className="text-cyan-400 font-bold">{currentTime}</span>
         </div>
 
         {/* Right: System Tray */}
         <div className="flex items-center gap-3 text-[11px] text-slate-400">
-          <div className="hidden md:flex items-center gap-1 text-slate-400">
-            <span className="text-emerald-400">●</span> eth0: 192.168.1.42
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsMuted(!isMuted)}
-            className="hover:text-cyan-300 cursor-pointer"
-            title={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'}
-          >
-            {isMuted ? '🔇' : '🔊'}
-          </button>
-          <span>100% 🔋</span>
-          <span className="text-cyan-400 font-semibold">Shoom</span>
+          {isCallOpen && <button type="button" onClick={() => isCallMinimized || activeWindow !== 'call' ? openCall() : hideCall()} aria-label={`${isCallMinimized || activeWindow !== 'call' ? 'เรียกคืน' : 'ย่อ'}สายของสายสืบภัทรวัฒน์ อนันต์กุล${unreadPoliceMessage ? ' มีข้อความใหม่' : ''}`} className={`flex h-7 max-w-[min(42vw,15rem)] shrink-0 items-center gap-1.5 rounded border px-2 text-xs font-semibold ${!isCallMinimized && activeWindow === 'call' ? 'border-cyan-600/60 bg-cyan-950 text-cyan-200' : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'}`}><span aria-hidden="true">☎</span><span className="truncate">สายสืบภัทรวัฒน์ อนันต์กุล</span>{unreadPoliceMessage && <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />}</button>}
         </div>
       </header>
   );

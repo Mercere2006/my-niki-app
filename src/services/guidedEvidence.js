@@ -29,15 +29,15 @@ export const guidedEvidenceMessages = [
 
 export const initialGuidedSequence = { index: -1, phase: 'pending' };
 
-export function advanceGuidedSequence(state, event) {
+export function advanceGuidedSequence(state, event, questionCount = guidedEvidenceQuestions.length) {
   if (event === 'delivered' && state.phase === 'pending') {
     return state.index < 0 ? { index: 0, phase: 'pending' } : { ...state, phase: 'ready' };
   }
   if (event === 'success' && state.phase === 'ready') {
-    return { ...state, phase: state.index === guidedEvidenceQuestions.length - 1 ? 'complete' : 'review' };
+    return { ...state, phase: 'review' };
   }
   if (event === 'continue' && state.phase === 'review') {
-    return { index: state.index + 1, phase: 'pending' };
+    return state.index === questionCount - 1 ? { ...state, phase: 'complete' } : { index: state.index + 1, phase: 'pending' };
   }
   return state;
 }

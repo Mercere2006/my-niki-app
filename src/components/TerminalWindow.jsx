@@ -1,7 +1,5 @@
 import DesktopWindow from './DesktopWindow';
-import { choices, followUpChoices, POLICE_PREFIX } from '../services/policeConversation';
-import { REPORT_NAME_REQUEST, REPORT_ADDRESS_REQUEST } from '../services/reportConversation';
-import { guidedEvidenceQuestions } from '../services/guidedEvidence';
+import { POLICE_PREFIX } from '../services/policeConversation';
 
 export default function TerminalWindow({
   isTerminalOpen,
@@ -16,19 +14,11 @@ export default function TerminalWindow({
   getCapriSprite,
   cliScrollRef,
   cliHistory,
-  policeConversation,
-  handlePoliceChoice,
-  handlePoliceFollowUp,
   handleCliSubmit,
   cliInputRef,
   cliInput,
   setCliInput,
   hasDownloadedCaseFiles,
-  reportStage,
-  onSelectReportRequest,
-  onAskGuidedEvidence,
-  activeGuidedQuestion,
-  isThinking,
 }) {
   return (
       <DesktopWindow
@@ -75,18 +65,6 @@ export default function TerminalWindow({
                   className="flex-1 overflow-y-auto space-y-1 pr-2 text-[20px] leading-relaxed font-mono select-text break-words"
                 >
                   {cliHistory.map((line, idx) => {
-                    const evidenceQuestion = guidedEvidenceQuestions.find((item) => item.line === line);
-                    if (evidenceQuestion && evidenceQuestion.id === activeGuidedQuestion) return (
-                      <button key={idx} type="button" disabled={isThinking} onClick={() => onAskGuidedEvidence(evidenceQuestion)} aria-label={`ให้ NIKI วิเคราะห์: ${evidenceQuestion.question}`} className="block w-full rounded border border-cyan-500 bg-cyan-950/40 px-3 py-2 text-left text-emerald-400 hover:bg-cyan-900/50 focus-visible:outline-2 focus-visible:outline-cyan-400 disabled:opacity-50">
-                        <span className="whitespace-pre-wrap">{line}</span><span className="mt-1 block font-sans text-xs text-cyan-200">คลิกเพื่อให้ NIKI ตรวจเอกสารตามคำถาม</span>
-                      </button>
-                    );
-                    const requestType = line === REPORT_NAME_REQUEST && reportStage === 'awaiting-name' ? 'name' : line === REPORT_ADDRESS_REQUEST && reportStage === 'awaiting-address' ? 'address' : null;
-                    if (requestType) return (
-                      <button key={idx} type="button" draggable onClick={() => onSelectReportRequest(requestType)} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('text/plain', `case-report:${requestType}`); onSelectReportRequest(requestType); }} aria-label={requestType === 'name' ? 'เลือกคำร้องขอชื่อจากสารวัตร' : 'เลือกคำร้องขอที่อยู่จากสารวัตร'} className="block w-full cursor-grab rounded border border-cyan-500 bg-cyan-950/40 px-3 py-2 text-left text-emerald-400 hover:bg-cyan-900/50 focus-visible:outline-2 focus-visible:outline-cyan-400 active:cursor-grabbing">
-                        <span className="whitespace-pre-wrap">{line}</span><span className="mt-1 block font-sans text-xs text-cyan-200">คลิกหรือลากคำร้องไปยังข้อมูลใน HumanDB</span>
-                      </button>
-                    );
                     return (
                     <div
                       key={idx}
@@ -109,24 +87,10 @@ export default function TerminalWindow({
                       {line}
                     </div>
                   ); })}
-                  {['choosing', 'follow-up-choosing'].includes(policeConversation) && (
-                    <div className="space-y-2 py-3 font-sans" aria-label="เลือกคำตอบให้สารวัตรภัทร">
-                      {(policeConversation === 'choosing' ? choices : followUpChoices).map((choice) => (
-                        <button
-                          key={choice.id}
-                          type="button"
-                          onClick={() => policeConversation === 'choosing' ? handlePoliceChoice(choice.id) : handlePoliceFollowUp(choice.id)}
-                          className="block w-full rounded border border-cyan-700/60 bg-slate-900 px-3 py-2 text-left text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-950 focus-visible:outline-2 focus-visible:outline-cyan-400"
-                        >
-                          {choice.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* CLI Command Input Prompt */}
-                {!['choosing', 'briefing', 'follow-up-choosing', 'follow-up-reply', 'download-offer'].includes(policeConversation) && <form onSubmit={handleCliSubmit} className="mt-2 pt-2 border-t border-slate-800 flex flex-wrap items-center gap-2 text-[20px]">
+                <form onSubmit={handleCliSubmit} className="mt-2 pt-2 border-t border-slate-800 flex flex-wrap items-center gap-2 text-[20px]">
                   <span className="text-cyan-400 font-bold shrink-0">shoom@cyber-arch:~$</span>
                   <input
                     ref={cliInputRef}
@@ -135,7 +99,7 @@ export default function TerminalWindow({
                     onChange={(e) => setCliInput(e.target.value)}
                     placeholder={
                       !hasDownloadedCaseFiles
-                        ? "รัน 'wget https://police.gov/case_files' เพื่อดาวน์โหลดหลักฐาน หรือพิมพ์ 'help'..."
+                        ? "พิมพ์ 'help' เพื่อดูคำสั่ง..."
                         : "พิมพ์ 'ls' เพื่อดูไฟล์ภาพหลักฐาน..."
                     }
                     className="min-w-0 flex-1 bg-transparent border-none text-white focus:outline-none font-mono text-[20px] placeholder-slate-600"
@@ -147,7 +111,7 @@ export default function TerminalWindow({
                   >
                     Enter
                   </button>
-                </form>}
+                </form>
               </div>
         </div>
       </DesktopWindow>

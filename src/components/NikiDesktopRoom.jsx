@@ -62,7 +62,7 @@ export default function NikiDesktopRoom({
     return () => clearInterval(roamInterval);
   }, [screenState]);
 
-  // นับถอยหลังให้สารวัตรภัทรโทรเข้าอัตโนมัติ (หรือผู้ใช้กดโทรทันทีได้)
+  // นับถอยหลังให้สายสืบภัทรวัฒน์ อนันต์กุลโทรเข้าอัตโนมัติ (หรือผู้ใช้กดโทรทันทีได้)
   useEffect(() => {
     if (screenState === 'ROAMING' && countdown > 0) {
       const timer = setTimeout(() => {
@@ -74,7 +74,7 @@ export default function NikiDesktopRoom({
     }
   }, [screenState, countdown, onTriggerCall]);
 
-  // เมื่อสารวัตรภัทรโทรเข้า ให้เล่นเสียงและโฟกัสช่องพิมพ์
+  // เมื่อสายสืบภัทรวัฒน์ อนันต์กุลโทรเข้า ให้เล่นเสียงและโฟกัสช่องพิมพ์
   useEffect(() => {
     if (screenState === 'INCOMING_CALL') {
       playVoice(0);
@@ -86,7 +86,7 @@ export default function NikiDesktopRoom({
   // ข้อความใน Speech Bubble คำนวณตามสถานะ
   const getDefaultBubble = () => {
     if (screenState === 'INCOMING_CALL') {
-      return 'Shoom! สารวัตรภัทรมีคดีด่วนมาขอให้เราช่วยวิเคราะห์ค่ะ คุณจะรับทำคดีนี้มั้ยคะ? (พิมพ์ ตอบ "รับ" หรือ "ไม่รับ")';
+      return 'Shoom! สายสืบภัทรวัฒน์ อนันต์กุลมีคดีด่วนมาขอให้เราช่วยวิเคราะห์ค่ะ คุณจะรับทำคดีนี้มั้ยคะ? (พิมพ์ ตอบ "รับ" หรือ "ไม่รับ")';
     }
     if (screenState === 'DECLINED') {
       return 'รับทราบค่ะ... งั้น NIKI ปิดสัญญาณแล้วไปนอนพักต่อนะคะ ฝันดีค่ะ Shoom... Zzz';
@@ -149,7 +149,7 @@ export default function NikiDesktopRoom({
                 onClick={onTriggerCall}
                 className="bg-sky-950/80 hover:bg-sky-900 border border-sky-600/50 text-sky-300 px-3 py-1 rounded text-xs transition cursor-pointer flex items-center gap-1.5"
               >
-                🚨 สารวัตรภัทรโทรเข้าเดี๋ยวนี้
+                🚨 สายสืบภัทรวัฒน์ อนันต์กุลโทรเข้าเดี๋ยวนี้
               </button>
             </div>
           )}
@@ -160,7 +160,7 @@ export default function NikiDesktopRoom({
               onClick={onTriggerCall}
               className="bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/50 text-emerald-300 px-3 py-1 rounded text-xs transition cursor-pointer flex items-center gap-1.5 animate-pulse"
             >
-              🔔 ปลุก NIKI / รับสายสารวัตรภัทรอีกครั้ง
+              🔔 ปลุก NIKI / รับสายจากสายสืบภัทรวัฒน์ อนันต์กุลอีกครั้ง
             </button>
           )}
 
@@ -196,7 +196,7 @@ export default function NikiDesktopRoom({
                 ภ
               </div>
               <div>
-                <div className="text-xs font-bold text-rose-300">สารวัตรภัทร (INSP. PHATTARA)</div>
+                <div className="text-xs font-bold text-rose-300">สายสืบภัทรวัฒน์ อนันต์กุล</div>
                 <div className="text-xs text-slate-300 italic mt-1 leading-relaxed">
                   &quot;Shoom! เอกสารสำคัญหายไปจากห้องเก็บหลักฐาน ผมส่งภาพจากกล้องให้แล้ว ช่วย NIKI ตรวจสอบที!&quot;
                 </div>

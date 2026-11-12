@@ -21,6 +21,7 @@ test('คำตอบต้องอ้างข้อความจริง�
   assert.match(parseEvidenceResponse(unread, files), /ตรวจสอบแหล่งอ้างอิงไม่ได้/);
   assert.match(parseEvidenceResponse('{bad json', files), /ตรวจสอบแหล่งอ้างอิงไม่ได้/);
   assert.equal(parseEvidenceResult(valid, files).ok, true);
+  assert.equal(parseEvidenceResult(valid, files).answer, 'มีการใช้บัตรเวลา 22:11');
   assert.equal(parseEvidenceResult(fabricated, files).ok, false);
   assert.equal(parseEvidenceResult(JSON.stringify({ answer: 'ไม่ทราบ', citations: [] }), files).ok, false);
 });

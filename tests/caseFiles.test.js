@@ -14,8 +14,8 @@ test('บัตรเป็นของธันวาแต่บุคคล�
 });
 
 test('Case_Files มีภาพกล้องและเอกสารคดีที่เปิดอ่านได้', () => {
-  assert.equal(caseFiles.filter((file) => file.kind === 'cctv').length, 1);
+  assert.equal(caseFiles.filter((file) => file.kind === 'cctv').length, 2);
   assert.equal(caseFiles.filter((file) => file.kind === 'document' && file.content).length, 3);
-  assert.equal(formatFileCount(caseFiles), '4 ไฟล์');
+  assert.equal(formatFileCount(caseFiles), '5 ไฟล์');
   assert.equal(formatFileCount([]), '0 ไฟล์');
 });

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { moveWindow, resizeWindow } from '../services/windowSizing';
 
-export default function DesktopWindow({ title, windowLabel, isOpen, isMinimized, isActive, onActivate, onMinimize, onClose, children, decoration, compact = false, initialSize = null }) {
+export default function DesktopWindow({ title, windowLabel, isOpen, isMinimized, isActive, onActivate, onMinimize, onClose, children, decoration, compact = false, initialSize = null, initialPlacement = 'left' }) {
   const [maximized, setMaximized] = useState(false);
   const [size, setSize] = useState(initialSize);
   const [position, setPosition] = useState(null);
@@ -46,11 +46,14 @@ export default function DesktopWindow({ title, windowLabel, isOpen, isMinimized,
   return (
     <section
       ref={windowRef}
+      data-desktop-window="true"
       aria-label={windowLabel}
       onPointerDown={onActivate}
       style={{
         zIndex: isActive ? 42 : 40,
+        ...(maximized && { right: 'calc(var(--call-sidebar-space, 0px) + 0.5rem)' }),
         ...(!maximized && size && { width: size.width, height: size.height }),
+        ...(!maximized && !position && initialPlacement === 'right' && { left: 'auto', right: 16, top: 48 }),
         ...(!maximized && position && { left: position.left, top: position.top }),
       }}
       className={`absolute flex flex-col shadow-[0_0_35px_rgba(0,0,0,0.9)] border border-slate-700/80 rounded-xl overflow-hidden bg-slate-950/95 backdrop-blur-lg ${

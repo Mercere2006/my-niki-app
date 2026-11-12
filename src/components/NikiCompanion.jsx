@@ -68,10 +68,10 @@ export default function NikiCompanion({
 
   // คำนวณข้อความใน Speech Bubble สไตล์ NIKI (ภาษาไทย)
   const getBaseBubble = () => {
-    if (gameState === 'CASE_CLOSED') return '🎉 พรีมสุดๆ ชูม! ส่งเบาะแสให้สารวัตรตรวจสอบต่อได้แล้ว!';
+    if (gameState === 'CASE_CLOSED') return '🎉 พรีมสุดๆ ชูม! ส่งเบาะแสให้สายสืบตรวจสอบต่อได้แล้ว!';
     if (gameState === 'CASE_ABORTED') return 'Zzz... กอนก์เอ๊ย ฉันของีบก่อนนะ (CASE ABORTED)';
     if (gameState === 'ACTIVE') return 'จัดไปชูม! ฉันกำลังรัน Reverse Traceroute แกะรอย IP ให้แล้ว...';
-    return 'ว่าไงชูม! สารวัตรภัทรส่งสายด่วนเข้ามา รอเธอตัดสินใจรับงานอยู่นะ';
+    return 'ว่าไงชูม! สายสืบภัทรวัฒน์ อนันต์กุลส่งสายด่วนเข้ามา รอเธอตัดสินใจรับงานอยู่นะ';
   };
 
   const bubbleText = customBubble || latestMessage || getBaseBubble();

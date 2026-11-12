@@ -6,6 +6,38 @@
   }
 }
 
+/* Match scrollbars to the desktop's dark panels. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: #061521;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid #061521;
+  border-radius: 6px;
+  background: #28677d;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #3e96a6;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+}
+
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #28677d #061521;
+  }
+}
+
 /* NIKI Sprite Walk Animation (12 frames, 100x160px) */
 .capri-sprite-walk {
   width: 100px;

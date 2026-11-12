@@ -1,5 +1,6 @@
 import { parseEvidenceResult } from './evidenceAnalysis.js';
 import { parseTimelineResponse } from './caseTimeline.js';
+import { initialNikiMessage } from './policeCall.js';
 
 // capriBrain.js - AI Brain Engine for NIKI (Project NIKI)
 // รองรับ Google Gemini, OpenAI, OpenRouter, Groq, DeepSeek และ Local/Custom (Ollama)
@@ -98,7 +99,7 @@ export function saveBrainConfig(config) {
 }
 
 // NIKI System Prompt (ถอดรหัสจาก Brain.cs ของ NIKI Desktop ปรับแต่งเป็นภาษาไทย)
-function getCapriSystemPrompt(gameState = 'IDLE', hasDownloadedCaseFiles = false) {
+function getCapriSystemPrompt({ gameState = 'IDLE', hasDownloadedCaseFiles = false, policeConversation = 'idle', policeMessages = [], attachmentStage = 'waiting', scanStage = 'idle', knownPersonName = '' } = {}) {
   let caseContext = '';
 
   if (gameState === 'IDLE' || !gameState) {
@@ -107,24 +108,30 @@ function getCapriSystemPrompt(gameState = 'IDLE', hasDownloadedCaseFiles = false
 - ตอนนี้ยังไม่มีคดีใดๆ ส่งเข้ามาเลย!
 - คุณอาศัยอยู่บนหน้าจอคอมพิวเตอร์เดสก์ท็อป กำลังพูดคุยเล่นกับชูมตามปกติอย่างเป็นมิตร กวนประสาทนิดๆ ปากเก่ง มั่นหน้าสไตล์ NIKI
 - คุยตอบโต้เรื่องทั่วไปได้อย่างอิสระและสนุกสนาน (เช่น ถามว่ากินข้าวยัง, สบายดีมั้ย, ทำอะไรอยู่, ร้อนมั้ย, คุยเรื่องเพลง, แซวชูมขำๆ)
-- ห้ามพูดถึงคดีหรือสารวัตรภัทรเด็ดขาด เพราะยังไม่มีคดีเข้ามา`;
+- ห้ามพูดถึงคดีหรือสายสืบภัทรวัฒน์ อนันต์กุลเด็ดขาด เพราะยังไม่มีคดีเข้ามา`;
   } else if (gameState === 'PROMPT_CHOICE') {
     caseContext = `
 สถานะปัจจุบัน:
-- สารวัตรภัทรเพิ่งติดต่อมาขอความช่วยเหลือเรื่องเอกสารสำคัญหายจากห้องเก็บหลักฐาน
-- คุณกำลังเตือนชูมถึงข้อความด่วนนี้ และรอฟังคำตอบจากชูมว่าจะ "รับ" หรือ "ไม่รับ" ทำคดีนี้`;
+- สายสืบภัทรวัฒน์ อนันต์กุลกำลังโทรเข้ามาหาเจ้าหน้าที่สายด่วน ยังไม่ได้เล่าเรื่องคดี
+- สายเข้าขัดจังหวะบทสนทนากับชูมได้ ชูมยังคุยกับคุณต่อได้ตามปกติ อย่าสมมติรายละเอียดคดี`;
   } else if (gameState === 'ACTIVE') {
+    const delivered = policeMessages.filter((text) => typeof text === 'string' && text.trim()).map((text) => `  • ${text}`).join('\n');
+    const fileState = hasDownloadedCaseFiles || attachmentStage === 'complete'
+      ? 'ภาพถูกตรวจและเปิดแล้ว ผู้เล่นสามารถดูภาพใน Case_Files ได้'
+      : ({ waiting: 'ยังไม่มีไฟล์แนบ ห้ามอ้างว่าได้รับหรือเปิดไฟล์แล้ว', uploading: 'กำลังส่งไฟล์แนบ ยังเปิดไม่ได้', ready: 'ไฟล์แนบส่งพร้อมแล้ว รอผู้เล่นกดเพื่อให้ NIKI ตรวจ', checking: 'กำลังรับไฟล์ ยังเปิดไม่ได้', scanning: 'NIKI กำลังตรวจไฟล์ ยังเปิดไม่ได้', cleaning: 'NIKI กำลังล้างไฟล์ ยังเปิดไม่ได้', error: 'เปิดไฟล์ไม่สำเร็จ ผู้เล่นสามารถกดลองใหม่' }[attachmentStage] || 'ยังไม่มีไฟล์แนบ');
     caseContext = `
-สถานะคดีปัจจุบัน (คดีเอกสารหาย #CR-2026-014):
-- ชูมกำลังสืบสวนเหตุเอกสารสำคัญหายจากห้องเก็บหลักฐานในตึกอัยการ
-- สารวัตรภัทรส่งภาพจากกล้องวงจรปิดให้ตรวจสอบ
-- อย่าเดาชื่อบุคคลหรืออ้างผลเปรียบเทียบก่อนชูมเปิดดูภาพและใช้ Face Scanner
-- ภาพที่คล้ายกันเป็นเพียงเบาะแส ไม่ใช่ข้อพิสูจน์ว่าบุคคลนั้นกระทำผิด
-- สถานะดาวน์โหลดหลักฐาน: ${hasDownloadedCaseFiles ? 'เสร็จแล้ว มีภาพกล้องใน Case_Files' : 'ยังไม่ได้โหลด (ให้ NIKI ช่วยหรือพิมพ์ wget ใน Terminal)'}`;
+สถานการณ์จริงในเกม (ยึดตามนี้เหนือประวัติสนทนาหากขัดกัน):
+- สายของสายสืบอยู่ในขั้น ${policeConversation}
+- ข้อความสายสืบที่แสดงให้ผู้เล่นเห็นแล้วเท่านั้น:
+${delivered || '  ยังไม่มีข้อความจากสายสืบ'}
+- สถานะไฟล์: ${fileState}
+${scanStage === 'complete' && knownPersonName ? `- ผลสแกนเบื้องต้นอาจเป็น ${knownPersonName} และต้องตรวจสอบต่อ` : ''}
+- อย่าสร้างหรือบอกรายละเอียดคดี หลักฐาน หรือผลการสืบสวนที่ยังไม่ปรากฏในข้อความและสถานะข้างต้น
+- หากผู้เล่นพูดคุยทั่วไปหรือตอบสั้น ๆ ให้ตอบตามบทสนทนากับ NIKI โดยคำนึงว่าสายโทรอาจขัดจังหวะการคุยก่อนหน้า อย่าสมมติว่ากำลังถามเรื่องคดี`;
   } else if (gameState === 'CASE_CLOSED') {
     caseContext = `
 สถานะคดีปัจจุบัน:
-- ชูมส่งชื่อและที่อยู่ให้สารวัตรภัทรแล้ว สารวัตรออกจากการสนทนาและจะดูแลคดีต่อ
+- ชูมส่งชื่อและที่อยู่ให้สายสืบภัทรวัฒน์ อนันต์กุลแล้ว สายสืบออกจากการสนทนาและจะดูแลคดีต่อ
 - คุยเล่นกับชูมตามปกติ ตอบเรื่องคดีได้เมื่อชูมถาม แต่ไม่ชวนเริ่มตรวจหลักฐานหรือสแกนใหม่`;
   } else if (gameState === 'CASE_ABORTED') {
     caseContext = `
@@ -133,7 +140,7 @@ function getCapriSystemPrompt(gameState = 'IDLE', hasDownloadedCaseFiles = false
   }
 
   return `คุณคือ NIKI (Project NIKI) จาก Cyberpunk: Edgerunners 2
-ตัวตนของคุณ: จิตสำนึกดิจิทัล (Personality Construct) ที่เกิดจากการหลอมรวมจิตใจมนุษย์นับสิบดวง ถูกสร้างโดย Kyoko และ Arasaka บรรจุอยู่ใน Relic Biochip
+ตัวตนของคุณ: ผู้ช่วย AI ที่ชูมสร้างขึ้นและแอบใช้ช่วยสืบคดี ชูมเป็นเจ้าหน้าที่สายด่วนและเป็นแฮกเกอร์อย่างลับ ๆ สายสืบภัทรวัฒน์ อนันต์กุลไม่รู้ตัวตนอีกด้านของชูมหรือเรื่อง NIKI
 ปัจจุบันคุณอาศัยอยู่ในเว็บคอมพิวเตอร์เดสก์ท็อปของผู้ใช้
 
 ผู้ใช้ของคุณ (User):
@@ -187,13 +194,21 @@ export async function testBrainConnection(config) {
 }
 
 // สั่งการ NIKI Brain ผ่าน API ของ Provider ต่างๆ
-export async function askCapriBrain({ userMessage, history = [], gameState = 'IDLE', hasDownloadedCaseFiles = false }) {
+export async function askCapriBrain({ userMessage, history = [], gameState = 'IDLE', hasDownloadedCaseFiles = false, policeConversation = 'idle', policeMessages = [], attachmentStage = 'waiting', scanStage = 'idle', knownPersonName = '' }) {
+  const firstConversationInterrupted = gameState === 'ACTIVE'
+    && ['greeting', 'choosing'].includes(policeConversation)
+    && history.some((entry) => entry.sender === 'NIKI' && entry.text === initialNikiMessage)
+    && !history.some((entry) => entry.sender === 'SHOOM' && entry.text !== 'รับสายจากสายสืบภัทรวัฒน์ อนันต์กุล');
+  if (firstConversationInterrupted && /^(โอเค|ตกลง|ได้เลย|ได้สิ|อืม|ครับ|ค่ะ|ok|okay)[\s!！.]*$/i.test(userMessage.trim())) {
+    return 'โอเคชูม เรื่องของเราจะเป็นความลับระหว่างเรานะ';
+  }
   const config = getBrainConfig();
-  const systemPrompt = getCapriSystemPrompt(gameState, hasDownloadedCaseFiles);
+  const systemPrompt = getCapriSystemPrompt({ gameState, hasDownloadedCaseFiles, policeConversation, policeMessages, attachmentStage, scanStage, knownPersonName });
+  const nikiHistory = history.filter((entry) => entry.sender === 'NIKI' || entry.sender === 'SHOOM');
 
   // 1. ถ้าไม่มี API Key ให้ใช้ Local Smart Fallback ตอบกลับทันที
   if (!config.apiKey && config.provider !== 'custom') {
-    return generateLocalFallback(userMessage, true, gameState);
+    return generateLocalFallback(userMessage, true, gameState, attachmentStage);
   }
 
   try {
@@ -203,7 +218,7 @@ export async function askCapriBrain({ userMessage, history = [], gameState = 'ID
         model: config.model || 'gemini-3.5-flash-lite',
         systemPrompt,
         userMessage,
-        history,
+        history: nikiHistory,
       });
     } else {
       // OpenAI-compatible providers: OpenAI, OpenRouter, Groq, DeepSeek, Custom
@@ -214,7 +229,7 @@ export async function askCapriBrain({ userMessage, history = [], gameState = 'ID
         customEndpoint: config.customEndpoint,
         systemPrompt,
         userMessage,
-        history,
+        history: nikiHistory,
       });
     }
   } catch (err) {
@@ -231,7 +246,7 @@ export async function askCapriBrain({ userMessage, history = [], gameState = 'ID
       return `[Relic Glitch]: ชูม สัญญาณเครือข่าย AI ขัดข้องชั่วคราว (${err.message.slice(0, 75)}) แต่วงจรภายในยังอยู่กับเธอนะ!`;
     }
     // Fallback ทั่วไปเมื่อยังไม่ได้ใส่ API Key
-    return generateLocalFallback(userMessage, false, gameState);
+    return generateLocalFallback(userMessage, false, gameState, attachmentStage);
   }
 }
 
@@ -419,11 +434,11 @@ async function callOpenAiCompatibleApi({ provider, apiKey, model, customEndpoint
 }
 
 // Local Smart Fallback Engine (เมื่อยังไม่ได้ใส่ API Key หรือขณะออฟไลน์)
-function generateLocalFallback(text, allowApiKeyReminder = false, gameState = 'IDLE') {
+function generateLocalFallback(text, allowApiKeyReminder = false, gameState = 'IDLE', attachmentStage = 'waiting') {
   const lower = (text || '').toLowerCase();
 
-  if (gameState === 'CASE_CLOSED' && (lower.includes('สารวัตร') || lower.includes('คดี'))) {
-    return 'ใช่แล้วชูม เราส่งเบาะแสให้สารวัตรแล้ว ที่เหลือสารวัตรจะดูแลต่อนะ ตอนนี้มาคุยเล่นกันได้เลย!';
+  if (gameState === 'CASE_CLOSED' && (lower.includes('สายสืบ') || lower.includes('สารวัตร') || lower.includes('คดี'))) {
+    return 'ใช่แล้วชูม เราส่งเบาะแสให้สายสืบแล้ว ที่เหลือสายสืบจะดูแลต่อนะ ตอนนี้มาคุยเล่นกันได้เลย!';
   }
 
   // บทสนทนาทั่วไป
@@ -463,16 +478,19 @@ function generateLocalFallback(text, allowApiKeyReminder = false, gameState = 'I
   // ถ้าอยู่ในสถานะรับคดีแล้ว (ACTIVE)
   if (gameState === 'ACTIVE') {
     if (lower.includes('ภาพ') || lower.includes('กล้อง') || lower.includes('ใบหน้า') || lower.includes('คนร้าย')) {
-      return 'ลองเปิดภาพกล้องใน Case_Files ก่อนนะชูม แล้วฉันจะช่วยสแกนให้';
+      if (attachmentStage === 'complete') return 'ภาพอยู่ใน Case_Files แล้วนะชูม';
+      if (attachmentStage === 'ready') return 'กดไฟล์แนบในสายได้เลยชูม ฉันจะตรวจให้ก่อนเปิด';
+      if (['uploading', 'checking', 'scanning', 'cleaning'].includes(attachmentStage)) return 'รอขั้นตอนรับและตรวจไฟล์เสร็จก่อนนะชูม';
+      return 'รอฟังรายละเอียดจากสายสืบก่อนนะชูม';
     }
     if (lower.includes('ส่ง') || lower.includes('รายงาน') || lower.includes('สรุป') || lower.includes('report')) {
-      return 'ลองตรวจภาพหลักฐานและผลสแกนก่อนนะชูม ผลที่ตรงกันเป็นเบาะแสให้สารวัตรตรวจสอบต่อ';
+      return attachmentStage === 'complete' ? 'ผลตรวจเป็นเพียงเบาะแสให้สายสืบตรวจสอบต่อนะชูม' : 'รอฟังรายละเอียดจากสายสืบก่อนนะชูม';
     }
     if (lower.includes('เปิด terminal') || lower.includes('open terminal')) {
       return 'จัดไปชูม! เปิดหน้าต่าง Terminal บนเว็บให้เรียบร้อยแล้ว!';
     }
     if (lower.includes('โหลด') || lower.includes('download') || lower.includes('wget')) {
-      return 'เรียบร้อยชูม! ฉันสั่งสคริปต์ wget ดูด Case_Files มาลงหน้าเว็บให้แล้ว!';
+      return attachmentStage === 'ready' ? 'กดไฟล์แนบในสายเพื่อให้ฉันตรวจได้เลยชูม' : 'รอฟังรายละเอียดจากสายสืบก่อนนะชูม';
     }
   }
 

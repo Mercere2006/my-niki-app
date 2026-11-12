@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { guidedEvidenceQuestions, getMissingGuidedFiles, initialGuidedSequence, advanceGuidedSequence } from '../src/services/guidedEvidence.js';
 import { caseFiles } from '../src/services/caseFiles.js';
 
-test('สารวัตรตั้งคำถามเจาะจงและอ้างอิงไฟล์คดีที่มีอยู่', () => {
+test('สายสืบตั้งคำถามเจาะจงและอ้างอิงไฟล์คดีที่มีอยู่', () => {
   assert.equal(guidedEvidenceQuestions.length, 3);
   assert.match(guidedEvidenceQuestions[0].question, /บัตร/);
   assert.match(guidedEvidenceQuestions[1].question, /คำให้การ/);
@@ -14,7 +14,7 @@ test('สารวัตรตั้งคำถามเจาะจงแล�
   }
 });
 
-test('สารวัตรรอให้วิเคราะห์และผู้เล่นกดไปต่อก่อนส่งคำถามถัดไป', () => {
+test('สายสืบรอให้ผู้เล่นส่งผลวิเคราะห์ทุกข้อก่อนถามต่อหรือจบ', () => {
   let state = initialGuidedSequence;
   assert.deepEqual(state, { index: -1, phase: 'pending' });
   state = advanceGuidedSequence(state, 'delivered');
@@ -34,6 +34,8 @@ test('สารวัตรรอให้วิเคราะห์และ�
   assert.deepEqual(state, { index: 2, phase: 'pending' });
   state = advanceGuidedSequence(state, 'delivered');
   state = advanceGuidedSequence(state, 'success');
+  assert.deepEqual(state, { index: 2, phase: 'review' });
+  state = advanceGuidedSequence(state, 'continue');
   assert.deepEqual(state, { index: 2, phase: 'complete' });
 });
 

@@ -1,11 +1,13 @@
 export const caseFiles = [
   {
-    name: 'cam_02_2214.png',
-    icon: '📷',
-    type: 'ภาพกล้องวงจรปิด',
-    kind: 'cctv',
-    imageUrl: '/cases/record-room/cam_02_2214.png',
-    description: 'ภาพจากกล้อง CAM 02 บริเวณหน้าห้องเก็บหลักฐาน เวลา 22:14 น. ในคืนที่เอกสารสำคัญหายไป',
+    name: 'cam_02_suspect.png', icon: '📷', type: 'ภาพบุคคลก่อนเกิดเหตุ', kind: 'cctv', subject: 'suspect', cameraId: 'CAM 02',
+    simulatedThreat: false, imageUrl: '/cases/parking/cam_02_before_v2.png',
+    description: 'ภาพจากกล้อง CAM 02 ก่อนเกิดเหตุ บุคคลอีกคนยืนอยู่ทางขวาของผู้เสียชีวิต ภาพใบหน้ามีคุณภาพต่ำ',
+  },
+  {
+    name: 'cam_02_2214.png', icon: '📷', type: 'ภาพผู้เสียชีวิต', kind: 'cctv', subject: 'victim', cameraId: 'CAM 02',
+    simulatedThreat: false, imageUrl: '/cases/parking/cam_02_scene_v2.png',
+    description: 'ภาพจากกล้อง CAM 02 หลังเกิดเหตุ ลานจอดรถตึกอัยการ ผู้เสียชีวิตอยู่บริเวณเสาด้านซ้าย',
   },
   {
     name: 'incident_report.txt', icon: '📄', type: 'รายงานเหตุการณ์', kind: 'document',
@@ -42,13 +44,13 @@ export const caseFiles = [
 export const cardHolderProfile = {
   imageUrl: '/cases/record-room/cardholder_thanwa.png',
   name: 'ธันวา วรากร', id: 'P-014', age: 38,
-  occupation: 'เจ้าหน้าที่บำรุงรักษาอาคาร', status: 'เจ้าของบัตร / ผู้ให้ข้อมูล',
+  occupation: 'เจ้าหน้าที่บำรุงรักษาอาคาร', status: 'เสียชีวิต',
 };
 
 export const cameraPerson = {
   imageUrl: '/cases/record-room/police_record_014.png',
   name: 'กฤตภาส นิลวัฒน์', id: 'P-027', age: 35,
-  occupation: 'พนักงานรับส่งเอกสาร', status: 'บุคคลที่ต้องตรวจสอบ',
+  occupation: 'ผู้ช่วยอัยการ', status: 'บุคคลที่ต้องตรวจสอบ',
 };
 
 export function formatFileCount(files) {

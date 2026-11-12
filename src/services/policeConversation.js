@@ -1,4 +1,4 @@
-export const POLICE_PREFIX = '[10.200.4.1] สารวัตรภัทร:';
+export const POLICE_PREFIX = '[10.200.4.1] สายสืบภัทรวัฒน์ อนันต์กุล:';
 export const UPLOAD_NOTICE = `${POLICE_PREFIX} ผมจะอัปโหลดภาพจากกล้องวงจรปิดและเอกสารคดีไว้ที่เซิร์ฟเวอร์ของตำรวจ คุณโหลดมาเองนะ`;
 export const NIKI_DOWNLOAD_OFFER = 'ดูเหมือนต้องโหลดไฟล์สินะ ชูมจะให้ฉันดาวน์โหลดให้ไหม?';
 export const DOWNLOAD_COMMAND = 'wget https://police.gov/case_files';
@@ -23,14 +23,14 @@ export function interpretDownloadReply(text) {
 
 export const greeting = [
   '',
-  '[+] เชื่อมต่อช่องสื่อสารเข้ารหัสกับสารวัตรภัทรแล้ว',
+  '[+] เชื่อมต่อช่องสื่อสารเข้ารหัสกับสายสืบภัทรวัฒน์ อนันต์กุลแล้ว',
   '',
   `${POLICE_PREFIX} สวัสดีคุณ Hacker`,
   `${POLICE_PREFIX} ไม่ได้คุยกันนานเลยนะ`,
 ];
 
 export const choices = [
-  { id: 'direct', label: 'เข้าเรื่องเลยเถอะคุณสารวัตร' },
+  { id: 'direct', label: 'เข้าเรื่องเลยเถอะคุณสายสืบ' },
   { id: 'silent', label: 'ไม่ตอบอะไร' },
 ];
 
@@ -49,7 +49,7 @@ export function replyToFollowUp(choice) {
 export function replyToChoice(choice) {
   return [
     '',
-    choice === 'direct' ? 'คุณ : เข้าเรื่องเลยเถอะคุณสารวัตร' : '[คุณไม่ได้ตอบอะไร]',
+    choice === 'direct' ? 'คุณ : เข้าเรื่องเลยเถอะคุณสายสืบ' : '[คุณไม่ได้ตอบอะไร]',
     '',
     choice === 'silent'
       ? `${POLICE_PREFIX} ยังเงียบเหมือนเดิมเลยนะ`

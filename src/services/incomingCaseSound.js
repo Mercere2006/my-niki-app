@@ -1,30 +1,42 @@
-export function playIncomingCaseSound({ muted = false, playVoice, createAudio = () => new Audio('/capri/voice/case-alert.wav') }) {
+export function playIncomingCaseSound({
+  muted = false,
+  createAudio = () => new Audio('/audio/incoming-call.wav'),
+  gestureTarget = typeof document === 'undefined' ? null : document,
+} = {}) {
   if (muted) return () => {};
 
+  let active = true;
   let audio;
-  let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    playVoice();
+  const removeListeners = () => {
+    gestureTarget?.removeEventListener('pointerdown', tryPlay);
+    gestureTarget?.removeEventListener('keydown', tryPlay);
+  };
+  const tryPlay = () => {
+    if (!active) return;
+    try {
+      Promise.resolve(audio.play()).then(() => {
+        if (active) removeListeners();
+      }).catch(() => {});
+    } catch {
+      // Some browsers require a user gesture before playback is permitted.
+    }
   };
 
   try {
     audio = createAudio();
-    audio.volume = 0.55;
-    audio.onended = finish;
-    audio.onerror = finish;
-    Promise.resolve(audio.play()).catch(finish);
+    audio.volume = 0.45;
+    audio.loop = true;
+    gestureTarget?.addEventListener('pointerdown', tryPlay);
+    gestureTarget?.addEventListener('keydown', tryPlay);
+    tryPlay();
   } catch {
-    finish();
+    removeListeners();
   }
 
   return () => {
-    finished = true;
-    if (audio) {
-      audio.onended = null;
-      audio.onerror = null;
-      audio.pause();
-    }
+    if (!active) return;
+    active = false;
+    removeListeners();
+    audio?.pause();
   };
 }

@@ -31,12 +31,12 @@ test('รับคำตอบให้ดาวน์โหลดและไ�
   for (const text of ['สวัสดี', '', 'เปิดไฟล์']) assert.equal(interpretDownloadReply(text), 'other');
 });
 
-test('สารวัตรทักก่อนให้เลือกตอบ และระบุเลขเครือข่าย', () => {
+test('สายสืบทักก่อนให้เลือกตอบ และระบุเลขเครือข่าย', () => {
   assert.match(greeting.join('\n'), /สวัสดีคุณ Hacker/);
   assert.doesNotMatch(greeting.join('\n'), /กล้องวงจรปิด|wget/);
-  assert.deepEqual(choices.map(({ label }) => label), ['เข้าเรื่องเลยเถอะคุณสารวัตร', 'ไม่ตอบอะไร']);
-  assert.equal(replyToChoice('direct')[1], 'คุณ : เข้าเรื่องเลยเถอะคุณสารวัตร');
-  for (const line of greeting.filter((line) => line.includes('สารวัตรภัทร:'))) assert.ok(line.startsWith(POLICE_PREFIX));
+  assert.deepEqual(choices.map(({ label }) => label), ['เข้าเรื่องเลยเถอะคุณสายสืบ', 'ไม่ตอบอะไร']);
+  assert.equal(replyToChoice('direct')[1], 'คุณ : เข้าเรื่องเลยเถอะคุณสายสืบ');
+  for (const line of greeting.filter((line) => line.includes('สายสืบภัทรวัฒน์ อนันต์กุล:'))) assert.ok(line.startsWith(POLICE_PREFIX));
 });
 
 test('ทั้งสองทางเลือกให้รายละเอียดคดีและวิธีโหลดภาพ', () => {

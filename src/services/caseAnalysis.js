@@ -3,7 +3,7 @@ export function interpretAnalysisReply(text, waitingForAnswer, reportStage) {
   const normalized = text.trim().toLowerCase();
   if (/(ไม่|อย่า|ยังไม่|no\b|not\b)/i.test(normalized)) return waitingForAnswer ? 'decline' : 'other';
   if (/วิเคราะห์|สแกน|เทียบหน้า|เทียบภาพ|analy[sz]e|scan/.test(normalized)) return 'accept';
-  if (waitingForAnswer && /^(เอา(สิ|เลย|ได้)?|ช่วย(ที|เลย|หน่อย)?|ตกลง|ได้(เลย|สิ)?|โอเค|จัดไป|yes|ok|sure)[\s!！.]*$/i.test(normalized)) return 'accept';
+  if (waitingForAnswer && /^(เอา(สิ|ดิ|เลย|ได้)?|ช่วย(ที|เลย|หน่อย)?|ตกลง|ได้(เลย|สิ|ดิ)?|โอเค|จัดไป|yes|ok|sure)\s*(ครับ|ค่ะ|คะ|นะ|จ้า|จ้ะ)?[\s!！.]*$/i.test(normalized)) return 'accept';
   return 'other';
 }
 

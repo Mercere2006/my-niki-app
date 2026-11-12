@@ -1,32 +1,50 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { setImmediate as afterTick } from 'node:timers/promises';
 import { playIncomingCaseSound } from '../src/services/incomingCaseSound.js';
 
-test('plays the alert once, then Capri voice after it ends', async () => {
+test('เสียงเรียกเข้าดังวนและหยุดเมื่อยกเลิกสาย', async () => {
   const calls = [];
-  const audio = { play() { calls.push('alert'); return Promise.resolve(); }, pause() { calls.push('pause'); } };
-  playIncomingCaseSound({ createAudio: () => audio, playVoice: () => calls.push('voice') });
-  assert.deepEqual(calls, ['alert']);
-  audio.onended();
-  assert.deepEqual(calls, ['alert', 'voice']);
+  const audio = { play() { calls.push('play'); return Promise.resolve(); }, pause() { calls.push('pause'); } };
+  const stop = playIncomingCaseSound({ createAudio: () => audio });
+  assert.equal(audio.loop, true);
+  assert.deepEqual(calls, ['play']);
+  stop();
+  assert.deepEqual(calls, ['play', 'pause']);
 });
 
-test('mute prevents both sounds and cancellation stops the pending voice', () => {
-  const calls = [];
-  const audio = { play() { calls.push('alert'); return Promise.resolve(); }, pause() { calls.push('pause'); } };
-  playIncomingCaseSound({ muted: true, createAudio: () => audio, playVoice: () => calls.push('voice') });
-  assert.deepEqual(calls, []);
-  const cancel = playIncomingCaseSound({ createAudio: () => audio, playVoice: () => calls.push('voice') });
-  const finish = audio.onended;
-  cancel();
-  finish();
-  assert.deepEqual(calls, ['alert', 'pause']);
+test('ปิดเสียงแล้วไม่สร้างเสียงเรียกเข้า', () => {
+  let created = false;
+  playIncomingCaseSound({ muted: true, createAudio: () => { created = true; } });
+  assert.equal(created, false);
 });
 
-test('tries Capri voice if the alert cannot play', async () => {
-  let voices = 0;
-  const audio = { play: () => Promise.reject(new Error('blocked')), pause() {} };
-  playIncomingCaseSound({ createAudio: () => audio, playVoice: () => voices++ });
-  await Promise.resolve();
-  assert.equal(voices, 1);
+test('หากเบราว์เซอร์บล็อกเสียง ให้ลองอีกครั้งเมื่อผู้เล่นกด และยกเลิกได้', async () => {
+  const handlers = new Map();
+  const target = { addEventListener(type, fn) { handlers.set(type, fn); }, removeEventListener(type) { handlers.delete(type); } };
+  let calls = 0;
+  const audio = { play() { calls++; return calls === 1 ? Promise.reject(new Error('blocked')) : Promise.resolve(); }, pause() {} };
+  const stop = playIncomingCaseSound({ createAudio: () => audio, gestureTarget: target });
+  await afterTick();
+  assert.equal(calls, 1);
+  assert.equal(typeof handlers.get('pointerdown'), 'function');
+  handlers.get('pointerdown')();
+  await afterTick();
+  assert.equal(calls, 2);
+  assert.equal(handlers.size, 0);
+  stop();
+});
+
+test('หากวางสายก่อนปลดล็อกเสียง จะไม่ลองเล่นอีก', async () => {
+  const handlers = new Map();
+  const target = { addEventListener(type, fn) { handlers.set(type, fn); }, removeEventListener(type) { handlers.delete(type); } };
+  let calls = 0;
+  const audio = { play() { calls++; return Promise.reject(new Error('blocked')); }, pause() {} };
+  const stop = playIncomingCaseSound({ createAudio: () => audio, gestureTarget: target });
+  const retry = handlers.get('pointerdown');
+  stop();
+  await afterTick();
+  retry();
+  assert.equal(calls, 1);
+  assert.equal(handlers.size, 0);
 });

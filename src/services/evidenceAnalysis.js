@@ -15,7 +15,8 @@ export function parseEvidenceResult(response, files) {
       if (!file || typeof citation.quote !== 'string' || !citation.quote.trim() || !file.content.includes(citation.quote.trim())) throw new Error('invalid citation');
       return `• ${file.name}: “${citation.quote.trim()}”`;
     });
-    return { ok: true, message: `${parsed.answer.trim()}\n\nอ้างอิง:\n${citations.join('\n')}` };
+    const answer = parsed.answer.trim();
+    return { ok: true, answer, message: `${answer}\n\nอ้างอิง:\n${citations.join('\n')}` };
   } catch {
     return { ok: false, message: invalidResponse };
   }
