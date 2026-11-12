@@ -1,7 +1,6 @@
 import DesktopWindow from './DesktopWindow';
 import { findPersonByName } from '../services/caseDatabases';
 import { useGameState } from '../hooks/useGameState';
-import CctvImage from './CctvImage';
 
 function Details({ rows }) {
   return <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">{rows.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-[11px] font-medium text-cyan-400">{label}</dt><dd className="mt-0.5 break-words text-sm font-semibold text-slate-100">{value}</dd></div>)}</dl>;
@@ -39,7 +38,7 @@ export default function DatabaseWindow({ isOpen, isMinimized, isActive, onActiva
 
 
   return (
-    <DesktopWindow title="HUMANDB // ฐานข้อมูลบุคคล" windowLabel="HumanDB" isOpen={isOpen} isMinimized={isMinimized} isActive={isActive} onActivate={onActivate} onMinimize={onMinimize} onClose={onClose} compact>
+    <DesktopWindow title="HUMANDB // ฐานข้อมูลบุคคล" windowLabel="HumanDB" initialPlacement="human-db" isOpen={isOpen} isMinimized={isMinimized} isActive={isActive} onActivate={onActivate} onMinimize={onMinimize} onClose={onClose} compact>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#031522] text-slate-200">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-900/70 bg-[#09283b] px-4 py-2.5 font-mono text-xs">
           <span className="font-bold tracking-wider text-cyan-100">HUMAN_DB // THAILAND</span>
@@ -49,7 +48,7 @@ export default function DatabaseWindow({ isOpen, isMinimized, isActive, onActiva
           <div className="mx-auto w-full max-w-3xl p-4 sm:p-5">
             <button type="button" onClick={back} className="mb-4 rounded border border-cyan-700 px-3 py-1.5 text-xs font-bold text-cyan-200 hover:bg-cyan-950">← ค้นหาใหม่</button>
               <div className="flex flex-col gap-4 sm:flex-row">
-                {result.id === 'P-038' ? <div className="w-full max-w-48 self-start border border-cyan-900"><CctvImage src={result.imageUrl} subject="dashcam" focused /></div> : <img src={result.imageUrl} alt={`ภาพประจำตัว ${result.name}`} className="h-auto w-full max-w-48 self-start border border-cyan-900" />}
+                <img src={result.imageUrl} alt={`ภาพประจำตัว ${result.name}`} className="h-auto w-full max-w-48 self-start border border-cyan-900" />
                 <div className="min-w-0 flex-1 space-y-4"><div><div className="font-mono text-[10px] tracking-wider text-cyan-500">แฟ้มบุคคล // {result.id}</div><h2 className="mt-1 text-lg font-bold text-white">{isReportTarget && reportStage === 'awaiting-suspect' && reportSelection === 'name' ? <button type="button" onClick={() => onSendName(result)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); if (event.dataTransfer.getData('text/plain') === 'case-report:name') onSendName(result); }} aria-label={`ส่งชื่อ ${result.name} ให้สายสืบภัทรวัฒน์ อนันต์กุล`} className="cursor-pointer rounded border border-dashed border-cyan-400 bg-cyan-950/50 px-2 py-1 text-left text-cyan-200 hover:bg-cyan-900 focus-visible:outline-2 focus-visible:outline-cyan-400">{result.name}</button> : result.name}</h2>{reportStage === 'greeting' && <p className="mt-2 text-xs text-cyan-300">สายสืบกำลังส่งข้อความเข้ามาในสาย...</p>}</div><Details rows={[[ 'เพศ', result.gender ], [ 'อายุ', `${result.age} ปี` ], [ 'สัญชาติ', result.nationality ], [ 'สีตา', result.eyeColor ], [ 'ส่วนสูง', result.height ]]} /></div>
               </div>
             <KnownFacts person={result} reportStage={reportStage} reportSelection={reportSelection} isReportTarget={isReportTarget} onSendAddress={onSendAddress} />

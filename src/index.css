@@ -84,6 +84,54 @@
   to { top: calc(100% - 4px); }
 }
 .face-scan-sweep { animation: face-scan-sweep 1.25s ease-in-out infinite alternate; }
+
+/* On a phone, switch between the call and full-size app windows. */
+@media (max-width: 639px) {
+  .game-desktop {
+    --call-sidebar-width: 100% !important;
+    --call-sidebar-space: 0px !important;
+  }
+
+  .game-desktop [data-desktop-window] {
+    inset: 2.5rem 0.5rem 3.25rem !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+
+  .desktop-companion {
+    right: 0.5rem;
+    bottom: 3.25rem;
+    max-width: calc(100vw - 1rem);
+    transform: none !important;
+  }
+
+  .desktop-companion.mobile-call-active:not(.mobile-expanded):not(.mobile-important) {
+    top: 13rem;
+    right: 0.25rem;
+    bottom: auto;
+    width: auto;
+  }
+
+  .desktop-companion.mobile-call-active:not(.mobile-expanded):not(.mobile-important) .niki-bubble {
+    display: none;
+  }
+
+  .desktop-companion.mobile-call-active:not(.mobile-expanded):not(.mobile-important) img[alt="NIKI Desktop Companion"] {
+    height: 3.5rem;
+  }
+
+  .desktop-companion.mobile-call-active:not(.mobile-expanded):not(.mobile-important) > button > div {
+    max-width: 3.75rem;
+  }
+
+  /* Prevent iOS from zooming into the chat and database inputs. */
+  .game-desktop input, .game-desktop textarea, .game-desktop select {
+    font-size: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .face-scan-sweep { animation: none; top: 50%; }
 }

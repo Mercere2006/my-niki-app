@@ -42,17 +42,12 @@ export function getNextStepGuidance(context = {}) {
     if (context.endingStage === 'awaiting-upload') return attachmentHint(context.dashcamStage, 'Dashcam_Files');
     if (context.endingStage === 'awaiting-face') return scanHint(context, 'dashcam', 'Dashcam_Files', context.dashcamLocation, 'ภาพจากกล้องหน้ารถ');
     if (context.documentsStage !== 'complete') return attachmentHint(context.documentsStage, 'Case_Documents');
-    if (context.guidedPhase === 'review') return 'ตรวจคำตอบในช่องสนทนาของภัทรวัฒน์ แล้วกดกล่องส่งคำตอบได้เลยชูม';
+    if (context.guidedPhase === 'review') return context.hasGuidedAnswerFile ? 'เปิดเอกสารคำตอบของ NIKI แล้วกดกรอบคำตอบเพื่อส่งให้สายสืบได้เลยชูม ถ้าปิดไฟล์ไปแล้วกดคำถามในสายอีกครั้งได้' : 'ตรวจคำตอบในช่องสนทนาของภัทรวัฒน์ แล้วกดกล่องส่งคำตอบได้เลยชูม';
     if (context.guidedPhase === 'ready') {
       const unavailable = folderHint('Case_Documents', context.caseDocumentsLocation);
       if (unavailable) return unavailable;
-      if (context.evidenceMode === 'manual') {
-        const files = context.guidedQuestionId === 'compare' ? 'เปิด krit_statement.txt กับ parking_access_log.txt ใน Case_Documents' : context.guidedQuestionId === 'timeline' ? 'เปิดเอกสารทั้งสามไฟล์ใน Case_Documents' : 'เปิด Case_Documents';
-        return `${files} แล้วเลือกข้อความที่อยู่ในกรอบให้ครบตามคำถาม จากนั้นส่งคำตอบในสายนะชูม`;
-      }
-      if (context.evidenceMode === 'offer') return 'พิมพ์ “เอาสิ” ให้ฉันช่วยหา หรือ “เดี๋ยวหาเอง” เพื่อค้นจากเอกสารนะชูม';
       if (context.evidenceMode === 'assisting') return 'ฉันกำลังตรวจเอกสารอยู่ รอผลก่อนนะชูม';
-      return 'กดกรอบคำถามของภัทรวัฒน์ในสายก่อน แล้วฉันจะถามว่าจะให้ช่วยตรวจเอกสารไหมนะชูม';
+      return 'กดกรอบคำถามของภัทรวัฒน์ในสาย แล้วฉันจะตรวจเอกสารและเปิดคำตอบให้ชูมส่งได้เลย';
     }
     return 'รอภัทรวัฒน์ส่งคำถามหรือข้อมูลต่อไปในสายก่อนนะชูม';
   }

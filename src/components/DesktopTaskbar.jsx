@@ -117,9 +117,9 @@ export default function DesktopTaskbar({
         </div>
         <div aria-label="สถานะระบบ วันที่และเวลา" className="flex shrink-0 items-center gap-2 whitespace-nowrap border-l border-slate-700 pl-2 font-mono text-[11px] font-semibold text-slate-300">
           <button type="button" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'} title={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'} className="cursor-pointer hover:text-cyan-300 focus-visible:outline-2 focus-visible:outline-cyan-400">{isMuted ? '🔇' : '🔊'}</button>
-          <span>100% 🔋</span>
-          <span className="text-cyan-400">Shoom</span>
-          <span>{currentDate}</span>
+          <span className="max-sm:hidden">100% 🔋</span>
+          <span className="text-cyan-400 max-sm:hidden">Shoom</span>
+          <span className="max-sm:hidden">{currentDate}</span>
           <span className="font-bold text-cyan-400">{currentTime}</span>
         </div>
       </div>

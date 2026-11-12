@@ -25,7 +25,7 @@ export default function DesktopIcons({ openCaseFiles, openDocuments, openDashcam
         <button type="button" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData(DESKTOP_FOLDER_DRAG, folder.id); }} onKeyDown={(event) => { if (event.key === 'Delete') { event.preventDefault(); onTrashFolder(folder.id); } }} onClick={folder.open} aria-label={`เปิด ${folder.id}`} title="ลากไปที่ Trash หรือกด Delete เพื่อย้ายลงถังขยะ" className="flex w-full cursor-pointer flex-col items-center gap-1 rounded-lg p-2 text-center transition hover:bg-slate-900/60 focus-visible:outline-2 focus-visible:outline-cyan-400">
           <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 text-2xl">{folder.icon}</span><span className="break-all font-mono text-xs font-medium text-amber-300">{folder.id}</span>
         </button>
-        <button type="button" onClick={() => onTrashFolder(folder.id)} aria-label={`ย้าย ${folder.id} ไปถังขยะ`} title="ย้ายไปถังขยะ" className="absolute right-0 top-0 rounded border border-slate-600 bg-slate-900 px-1 text-xs text-slate-300 opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:outline-2 focus-visible:outline-cyan-400">✕</button>
+        <button type="button" onClick={() => onTrashFolder(folder.id)} aria-label={`ย้าย ${folder.id} ไปถังขยะ`} title="ย้ายไปถังขยะ" className="absolute right-0 top-0 rounded border border-slate-600 bg-slate-900 px-1 text-xs text-slate-300 opacity-0 max-sm:opacity-100 group-hover:opacity-100 focus:opacity-100 focus-visible:outline-2 focus-visible:outline-cyan-400">✕</button>
       </div>)}
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { callChoices, callbackChoice, missedCallbackChoice, isOfficerOffline, stripPolicePrefix } from '../services/policeCall';
 import { REPORT_SUSPECT_REQUEST, REPORT_ADDRESS_REQUEST } from '../services/reportConversation';
 
-export default function PoliceCallWindow({ isOpen, isMinimized, onActivate, onMinimize, phase, callEndReason, messages, typingText, isTyping, onAnswer, onDecline, onChoice, onCallbackChoice, attachment, uploadProgress, onOpenPhoto, reportStage, onSelectReportRequest, victimReplyReady, onSendVictimReply, isFollowupCall, onOpenDocuments, documentsAttachment, documentsUploadProgress, currentQuestion, questionPhase, manualProgress, guidedAnswer, onSendGuidedAnswer, onSelectQuestion, dashcamAttachment, dashcamUploadProgress, onOpenDashcam, endingStage, onSendDashcamName, isThinking }) {
+export default function PoliceCallWindow({ isOpen, isMinimized, isActive, onActivate, onMinimize, phase, callEndReason, messages, typingText, isTyping, onAnswer, onDecline, onChoice, onCallbackChoice, attachment, uploadProgress, onOpenPhoto, reportStage, onSelectReportRequest, victimReplyReady, onSendVictimReply, isFollowupCall, onOpenDocuments, documentsAttachment, documentsUploadProgress, currentQuestion, questionPhase, manualProgress, guidedAnswer, answerInFile, onSendGuidedAnswer, onSelectQuestion, dashcamAttachment, dashcamUploadProgress, onOpenDashcam, endingStage, onSendDashcamName, isThinking }) {
   const scrollRef = useRef(null);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, typingText, phase]);
   const ringing = phase === 'ringing';
@@ -10,7 +10,7 @@ export default function PoliceCallWindow({ isOpen, isMinimized, onActivate, onMi
   const closed = ['apology', 'complete'].includes(endingStage) || isOfficerOffline(reportStage, isFollowupCall, phase);
   if (!isOpen || isMinimized) return null;
   return (
-    <aside aria-label="สายของสายสืบภัทรวัฒน์ อนันต์กุล" onPointerDown={onActivate} className="absolute bottom-11 right-0 top-8 z-[44] flex w-[var(--call-sidebar-width)] flex-col overflow-hidden border-l border-cyan-700/70 bg-[#031522] shadow-[-8px_0_25px_rgba(0,0,0,0.35)]">
+    <aside aria-label="สายของสายสืบภัทรวัฒน์ อนันต์กุล" onPointerDown={onActivate} className={`absolute bottom-11 right-0 top-8 z-[44] flex w-[var(--call-sidebar-width)] flex-col overflow-hidden border-l border-cyan-700/70 bg-[#031522] shadow-[-8px_0_25px_rgba(0,0,0,0.35)] ${isActive ? '' : 'max-sm:hidden'}`}>
       <div className="flex min-h-0 flex-1 flex-col bg-[#031522] text-slate-200">
         <div className="flex shrink-0 items-center justify-between border-b border-cyan-800 bg-[#09283b] px-4 py-2.5 text-sm font-bold text-cyan-100">
           <span>☎ สายของสายสืบภัทรวัฒน์ อนันต์กุล</span>
@@ -64,7 +64,7 @@ export default function PoliceCallWindow({ isOpen, isMinimized, onActivate, onMi
           {victimReplyReady && reportStage === 'awaiting-victim' && <div className="border-t border-cyan-950 p-3"><button type="button" onClick={onSendVictimReply} className="block w-full rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm text-amber-200 hover:bg-amber-950/40">นายธันวา วรากร</button></div>}
           {endingStage === 'awaiting-name' && <div className="border-t border-cyan-950 p-3"><button type="button" onClick={onSendDashcamName} className="block w-full rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm text-amber-200 hover:bg-amber-950/40">นายอัศวกร พรหมพิทักษ์</button></div>}
           {manualProgress && questionPhase === 'ready' && manualProgress.total > 1 && <div role="status" className="border-t border-cyan-950 px-3 py-2 text-xs text-cyan-200">เลือกหลักฐานแล้ว {manualProgress.selectedCount} / {manualProgress.total} ข้อความ</div>}
-          {questionPhase === 'review' && guidedAnswer && <div className="border-t border-cyan-950 p-3"><button type="button" onClick={onSendGuidedAnswer} disabled={isThinking} aria-label="ส่งคำตอบให้เจ้าหน้าที่ภัทรวัฒน์" className="block max-h-36 w-full overflow-y-auto whitespace-pre-wrap rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm leading-relaxed text-amber-200 hover:bg-amber-950/40 focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-50"><span className="mb-1 block text-xs font-semibold text-amber-400">ส่งคำตอบให้เจ้าหน้าที่</span>{guidedAnswer}</button></div>}
+          {questionPhase === 'review' && guidedAnswer && !answerInFile && <div className="border-t border-cyan-950 p-3"><button type="button" onClick={onSendGuidedAnswer} disabled={isThinking} aria-label="ส่งคำตอบให้เจ้าหน้าที่ภัทรวัฒน์" className="block max-h-36 w-full overflow-y-auto whitespace-pre-wrap rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm leading-relaxed text-amber-200 hover:bg-amber-950/40 focus-visible:outline-2 focus-visible:outline-amber-300 disabled:opacity-50"><span className="mb-1 block text-xs font-semibold text-amber-400">ส่งคำตอบให้เจ้าหน้าที่</span>{guidedAnswer}</button></div>}
         </>}
       </div>
     </aside>

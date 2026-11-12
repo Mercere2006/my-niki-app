@@ -1,6 +1,12 @@
 import { useRef, useState } from 'react';
 import { moveWindow, resizeWindow } from '../services/windowSizing';
 
+const investigationPlacements = {
+  'case-files': { left: 32, top: 72 },
+  'face-scanner': { left: 260, top: 120 },
+  'human-db': { left: 440, top: 168 },
+};
+
 export default function DesktopWindow({ title, windowLabel, isOpen, isMinimized, isActive, onActivate, onMinimize, onClose, children, decoration, compact = false, initialSize = null, initialPlacement = 'left' }) {
   const [maximized, setMaximized] = useState(false);
   const [size, setSize] = useState(initialSize);
@@ -8,6 +14,7 @@ export default function DesktopWindow({ title, windowLabel, isOpen, isMinimized,
   const windowRef = useRef(null);
   const moveStart = useRef(null);
   const resizeStart = useRef(null);
+  const investigationPlacement = investigationPlacements[initialPlacement];
 
   const updatePosition = (rect, deltaX, deltaY) => {
     setSize({ width: rect.width, height: rect.height });
@@ -54,6 +61,11 @@ export default function DesktopWindow({ title, windowLabel, isOpen, isMinimized,
         ...(maximized && { right: 'calc(var(--call-sidebar-space, 0px) + 0.5rem)' }),
         ...(!maximized && size && { width: size.width, height: size.height }),
         ...(!maximized && !position && initialPlacement === 'right' && { left: 'auto', right: 16, top: 48 }),
+        ...(!maximized && !position && investigationPlacement && {
+          left: `min(${investigationPlacement.left}px, max(16px, calc(100vw - var(--call-sidebar-space, 0px) - min(720px, max(0px, calc(100vw - var(--call-sidebar-space, 0px) - 32px))) - 16px)))`,
+          top: investigationPlacement.top,
+          ...(!size && { width: 'min(720px, max(0px, calc(100vw - var(--call-sidebar-space, 0px) - 32px)))', height: `min(480px, max(0px, calc(100dvh - ${investigationPlacement.top + 56}px)))` }),
+        }),
         ...(!maximized && position && { left: position.left, top: position.top }),
       }}
       className={`absolute flex flex-col shadow-[0_0_35px_rgba(0,0,0,0.9)] border border-slate-700/80 rounded-xl overflow-hidden bg-slate-950/95 backdrop-blur-lg ${

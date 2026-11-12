@@ -8,8 +8,9 @@ import { caseFiles, cameraPerson, cardHolderProfile } from '../services/caseFile
 import { prepareFaceScan, interpretAnalysisReply } from '../services/caseAnalysis';
 import { getOpenedEvidence } from '../services/evidenceAnalysis';
 import { initialGuidedSequence, advanceGuidedSequence } from '../services/guidedEvidence';
-import { interpretEvidenceOffer, getManualEvidence, getManualEvidenceResult } from '../services/evidenceInteraction';
-import { FOLLOWUP_DELAY_MS, INTERTITLE_MS, nextFollowupPhase, followupIntroduction, followupFiles, followupQuestions as guidedEvidenceQuestions, followupAcknowledgements, formatTimelineReply, inspectSimulatedDocuments } from '../services/caseFollowup';
+import { isEvidenceHelpRequest, getManualEvidence, getManualEvidenceResult } from '../services/evidenceInteraction';
+import { buildGuidedAnswerFile } from '../services/guidedAnswerFile';
+import { FOLLOWUP_DELAY_MS, INTERTITLE_MS, nextFollowupPhase, followupIntroduction, followupFiles, followupQuestions as guidedEvidenceQuestions, followupAcknowledgements, inspectSimulatedDocuments } from '../services/caseFollowup';
 import { dashcamFiles, dashcamPerson, endingQueue, endingReply, advanceEnding, END_SCREEN_DELAY_MS } from '../services/caseEnding';
 import { nextFaceScanStage } from '../services/faceScanFlow';
 import { initialReportConversation, advanceReportConversation, canMatchReportTarget, canOfferVictimReply, getNikiConversationState, isReportProfileEligible, shouldCloseCallAfterMessage, REPORT_END_MESSAGE, REPORT_SUSPECT_REQUEST } from '../services/reportConversation';
@@ -125,6 +126,7 @@ export default function LinuxDesktop({
   const [selectedEvidenceIds, setSelectedEvidenceIds] = useGameState('selectedEvidenceIds', []);
   const [guidedEvidenceResponse, setGuidedEvidenceResponse] = useGameState('guidedEvidenceResponse', '');
   const [guidedEvidenceAnswer, setGuidedEvidenceAnswer] = useGameState('guidedEvidenceAnswer', '');
+  const [guidedAnswerFile, setGuidedAnswerFile] = useGameState('guidedAnswerFile', null);
   const [timelineResult, setTimelineResult] = useGameState('timelineResult', null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [analysisPrompt, setAnalysisPrompt] = useGameState('analysisPrompt', 'idle');
@@ -153,6 +155,7 @@ export default function LinuxDesktop({
   const followupDeadlineRef = useRef(null);
   const intertitleStartedAtRef = useRef(null);
   const finalScreenDeadlineRef = useRef(null);
+  const guidedRequestRef = useRef(false);
   const sayGuidance = useCallback((message) => {
     setCapriMessage(message);
     cancelGuidanceSoundRef.current?.();
@@ -353,88 +356,70 @@ export default function LinuxDesktop({
     setSelectedCaseFile(null);
   };
 
-  const handleAskGuidedEvidence = async (question, retry = false) => {
-    if (isThinking || !question) return;
+  const handleAskGuidedEvidence = async (question, retry = false, fromPlayer = false) => {
+    if (guidedRequestRef.current || isThinking || !question) return;
     const currentQuestion = guidedEvidenceQuestions[guidedSequence.index];
-    const isTimelineRetry = question.mode === 'timeline' && guidedSequence.phase === 'complete';
+    const isTimelineRetry = retry && question.mode === 'timeline' && guidedSequence.phase === 'complete';
     if (question.id !== currentQuestion?.id || (!['ready', 'review'].includes(guidedSequence.phase) && !isTimelineRetry)) return;
+    if (guidedSequence.phase === 'review' && !retry) {
+      if (guidedAnswerFile?.questionId === question.id) {
+        setExplorerFolder('Case_Documents');
+        setSelectedCaseFile(guidedAnswerFile);
+        openExplorer();
+      } else {
+        setShowBubble(true);
+        sayGuidance(guidedEvidenceResponse);
+      }
+      return;
+    }
     setGuidedEvidenceVisible(true);
     setIsPerchedOnWindow(false);
     setShowBubble(true);
-    if (guidedSequence.phase === 'review' && !(retry && question.mode === 'timeline')) {
-      sayGuidance(guidedEvidenceResponse);
-      return;
-    }
+    if (!fromPlayer) setLastPlayerInput('');
     if (!documentsReleased) {
-      setEvidenceMode('offer');
+      setEvidenceMode('idle');
       sayGuidance('รอรับและตรวจเอกสารจากสายสืบให้เรียบร้อยก่อนนะชูม');
       return;
     }
     if (!isFolderAvailable('Case_Documents')) {
-      setEvidenceMode('offer');
+      setEvidenceMode('idle');
       sayGuidance(folderLocation(folderLocations, 'Case_Documents') === 'trash' ? 'Case_Documents อยู่ในถังขยะ กู้คืนก่อนแล้วฉันจะช่วยตรวจเอกสารให้นะชูม' : 'ไม่พบ Case_Documents บนเดสก์ท็อป จึงตรวจเอกสารไม่ได้');
       return;
     }
     const files = getOpenedEvidence(followupFiles, question.requiredFiles);
     if (files.length !== question.requiredFiles.length) {
-      setEvidenceMode('offer');
+      setEvidenceMode('idle');
       sayGuidance('เอกสารที่ต้องใช้ยังไม่ครบ ลองตรวจสอบไฟล์อีกครั้งนะชูม');
       return;
     }
+    guidedRequestRef.current = true;
     setEvidenceMode('assisting');
-    if (question.mode === 'timeline') {
-      setGuidedEvidenceVisible(false);
-      setTimelineResult(null);
-      setTimelineLoading(true);
-      setIsThinking(true);
-      openUtility('timeline');
-      try {
-        const result = await askTimelineBrain({ files });
-        setTimelineResult(result);
-        if (result.ok) {
-          setSelectedEvidenceIds([]);
-          setGuidedEvidenceAnswer(formatTimelineReply(result.events));
-          setGuidedEvidenceResponse('ฉันเรียงเหตุการณ์จากเอกสารแล้วชูม ดูรายละเอียดและหลักฐานอ้างอิงในหน้าลำดับเหตุการณ์ได้เลย');
-          sayGuidance('ฉันเรียงเหตุการณ์จากเอกสารแล้วชูม ดูรายละเอียดและหลักฐานอ้างอิงในหน้าลำดับเหตุการณ์ แล้วเลือกส่งให้เจ้าหน้าที่ในสายได้เลย');
-          setGuidedEvidenceVisible(true);
-          setEvidenceMode('review');
-          setGuidedSequence((state) => advanceGuidedSequence(state, 'success'));
-        } else {
-          setEvidenceMode('offer');
-          setGuidedEvidenceVisible(true);
-          sayGuidance(`${result.error} ถ้าชูมอยากหาเองก็บอกฉันได้เลยนะ`);
-        }
-      } catch {
-        setTimelineResult({ ok: false, error: 'ฉันสร้างไทม์ไลน์ไม่สำเร็จ ลองตรวจการตั้งค่า AI แล้วกดสร้างอีกครั้งนะชูม' });
-        setEvidenceMode('offer');
-        setGuidedEvidenceVisible(true);
-        sayGuidance('ฉันสร้างไทม์ไลน์ไม่สำเร็จ ลองอีกครั้งหรือบอกฉันว่าจะหาเองได้นะชูม');
-      } finally {
-        setTimelineLoading(false);
-        setIsThinking(false);
-      }
-      return;
-    }
     setIsThinking(true);
     setCapriAnim('talk');
-    setCapriMessage('ได้เลยชูม ฉันกำลังตรวจเอกสารตามคำถามของสายสืบ...');
+    if (question.mode === 'timeline') setTimelineLoading(true);
+    sayGuidance('ชูม รอสักครู่นะ ฉันกำลังตรวจเอกสารตามคำถามของสายสืบ...');
     try {
-      const result = await askEvidenceBrainResult({ question: question.question, files });
-      sayGuidance(result.message);
-      if (result.ok) {
-        setSelectedEvidenceIds([]);
-        setGuidedEvidenceResponse(result.message);
-        setGuidedEvidenceAnswer(result.answer);
-        setEvidenceMode('review');
-        setGuidedSequence((state) => advanceGuidedSequence(state, 'success'));
-      } else {
-        setEvidenceMode('offer');
-      }
-      onSendMessage(`คำถามของสายสืบ: ${question.question}`, result.message);
-    } catch {
-      setEvidenceMode('offer');
-      sayGuidance('ฉันวิเคราะห์เอกสารไม่สำเร็จ ลองอีกครั้งหรือบอกฉันว่าจะหาเองได้นะชูม');
+      const [result] = await Promise.all([
+        (question.mode === 'timeline' ? askTimelineBrain({ files }) : askEvidenceBrainResult({ question: question.question, files })).catch(() => ({ ok: false })),
+        new Promise((resolve) => setTimeout(resolve, 800)),
+      ]);
+      if (question.mode === 'timeline') setTimelineResult(result);
+      const answerFile = buildGuidedAnswerFile(question, result);
+      setSelectedEvidenceIds([]);
+      setGuidedAnswerFile(answerFile);
+      setGuidedEvidenceAnswer(answerFile.answer);
+      setGuidedEvidenceResponse('ฉันเปิดเอกสารคำตอบแล้วชูม ตรวจข้อมูลและกดกรอบคำตอบเพื่อส่งให้สายสืบได้เลย');
+      setEvidenceMode('review');
+      setGuidedSequence((state) => advanceGuidedSequence(state, 'success'));
+      setExplorerFolder('Case_Documents');
+      setSelectedCaseFile(answerFile);
+      setGuidedEvidenceVisible(false);
+      setShowBubble(false);
+      setCapriMessage('ฉันเปิดเอกสารคำตอบแล้วชูม ตรวจข้อมูลและกดกรอบคำตอบเพื่อส่งให้สายสืบได้เลย');
+      openExplorer();
     } finally {
+      guidedRequestRef.current = false;
+      setTimelineLoading(false);
       setIsThinking(false);
     }
   };
@@ -448,6 +433,8 @@ export default function LinuxDesktop({
     setGuidedEvidenceVisible(false);
     setGuidedEvidenceResponse('');
     setGuidedEvidenceAnswer('');
+    setGuidedAnswerFile(null);
+    setSelectedCaseFile((file) => file?.kind === 'guided-answer' ? null : file);
     setEvidenceMode('idle');
     setSelectedEvidenceIds([]);
     setCapriMessage('ส่งคำตอบให้ภัทรวัฒน์แล้วนะชูม');
@@ -485,14 +472,8 @@ export default function LinuxDesktop({
   };
 
   const handleSelectGuidedQuestion = () => {
-    if (guidedSequence.phase === 'review') { setShowBubble(true); sayGuidance(guidedEvidenceResponse); return; }
-    if (guidedSequence.phase !== 'ready' || isThinking) return;
-    setGuidedEvidenceVisible(true);
-    setIsPerchedOnWindow(false);
-    setShowBubble(true);
-    setLastPlayerInput('');
-    if (evidenceMode === 'manual') sayGuidance('ลองเปิด Case_Documents แล้วเลือกข้อความในกรอบที่ตอบคำถามนะชูม');
-    else { setEvidenceMode('offer'); sayGuidance('ชูม ให้ฉันช่วยตรวจเอกสารเพื่อหาคำตอบสำหรับสายสืบไหม?'); }
+    if (!['ready', 'review'].includes(guidedSequence.phase) || isThinking) return;
+    void handleAskGuidedEvidence(currentGuidedQuestion);
   };
 
   useEffect(() => {
@@ -1083,13 +1064,19 @@ export default function LinuxDesktop({
     setLastPlayerInput(text);
     setPlayerInput('');
 
+    if (followupPhase === 'active' && guidedSequence.phase === 'ready' && currentGuidedQuestion && isEvidenceHelpRequest(text, { awaitingReply: ['offer', 'manual'].includes(evidenceMode) })) {
+      onSendMessage?.(text, 'ได้เลยชูม ฉันจะตรวจเอกสารตามคำถามของสายสืบให้');
+      await handleAskGuidedEvidence(currentGuidedQuestion, false, true);
+      return;
+    }
+
     if (isGuidanceRequest(text)) {
       const reply = getNextStepGuidance({
         gameState, hasIncomingCase, policeConversation, callEndReason, followupPhase,
         callQueueLength: callQueue.length, isCallMinimized, reportStage: reportConversation.stage,
         reportHasPending: reportConversation.pending.length > 0, reportSelection, victimReplyReady,
         attachmentStage: attachment.stage, documentsStage: documentsAttachment.stage, dashcamStage: dashcamAttachment.stage,
-        guidedPhase: guidedSequence.phase, guidedQuestionId: currentGuidedQuestion?.id, evidenceMode, endingStage,
+        guidedPhase: guidedSequence.phase, guidedQuestionId: currentGuidedQuestion?.id, evidenceMode, hasGuidedAnswerFile: Boolean(guidedAnswerFile), endingStage,
         scanStage, scanSubject, isScannerOpen, isScannerMinimized,
         knownPersonName: scanStage === 'complete' ? (scanSubject === 'dashcam' ? dashcamPerson.name : scanSubject === 'victim' ? cardHolderProfile.name : cameraPerson.name) : '',
         caseFilesLocation: folderLocation(folderLocations, 'Case_Files'),
@@ -1100,24 +1087,6 @@ export default function LinuxDesktop({
       sayGuidance(reply);
       onSendMessage?.(text, reply);
       return;
-    }
-
-    if (guidedSequence.phase === 'ready' && ['offer', 'manual'].includes(evidenceMode)) {
-      const offerReply = interpretEvidenceOffer(text);
-      if (offerReply === 'decline') {
-        const reply = 'ได้เลยชูม ลองเปิด Case_Documents แล้วคลิกข้อความในกรอบที่ตอบคำถามนะ ถ้ามีหลายข้อมูลให้เลือกครบก่อนส่ง';
-        setEvidenceMode('manual');
-        setGuidedEvidenceVisible(true);
-        setCapriAnim('talk');
-        sayGuidance(reply);
-        onSendMessage(text, reply);
-        return;
-      }
-      if (offerReply === 'accept' && (evidenceMode === 'offer' || /ช่วย|วิเคราะห์|หาคำตอบ|help|analy/i.test(text))) {
-        onSendMessage(text, 'ได้เลยชูม ฉันจะตรวจเอกสารให้');
-        await handleAskGuidedEvidence(currentGuidedQuestion);
-        return;
-      }
     }
 
     const analysisReply = interpretAnalysisReply(text, analysisPrompt === 'offered', reportConversation.stage);
@@ -1305,7 +1274,7 @@ export default function LinuxDesktop({
 
   return (
     <div
-      className="relative w-screen h-screen overflow-hidden select-none font-['Chakra_Petch',sans-serif] bg-black bg-cover bg-center"
+      className="game-desktop relative w-screen h-[100dvh] overflow-hidden select-none font-['Chakra_Petch',sans-serif] bg-black bg-cover bg-center"
       style={{ backgroundImage: `url('/bg.jpg')`, '--call-sidebar-width': 'min(360px, 48vw)', '--call-sidebar-space': isCallOpen && !isCallMinimized ? 'var(--call-sidebar-width)' : '0px' }}
       onDragOver={(event) => { if (!event.target.closest('[data-desktop-window]') && Array.from(event.dataTransfer.types).includes(TRASH_FOLDER_DRAG)) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }}
       onDrop={(event) => { if (event.target.closest('[data-desktop-window]')) return; const id = event.dataTransfer.getData(TRASH_FOLDER_DRAG); if (id) { event.preventDefault(); handleRestoreFolder(id); } }}
@@ -1376,6 +1345,7 @@ export default function LinuxDesktop({
       {reportSelection && <div role="status" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('text/plain', `case-report:${reportSelection}`); }} className="absolute left-4 top-12 z-[60] flex w-[min(22rem,calc(100vw-2rem))] cursor-grab items-start gap-3 rounded border border-cyan-400 bg-slate-950/95 p-3 text-sm text-cyan-100 shadow-lg active:cursor-grabbing"><div className="min-w-0 flex-1"><div className="font-bold text-emerald-400">สายสืบภัทรวัฒน์ อนันต์กุล: {reportSelection === 'name' ? (reportConversation.stage === 'awaiting-victim' ? 'ช่วยหาชื่อผู้เสียชีวิตให้ผมก่อนนะ' : 'แล้วคนที่ยิงล่ะ คุณพอจะตรวจสอบได้ไหม') : 'ว่าแต่คุณมีที่อยู่ของเขาไหม'}</div><div className="mt-1 text-xs text-cyan-200">คลิกข้อมูลที่ไฮไลต์ใน HumanDB หรือลากกล่องนี้ไปวางบนข้อมูล</div></div><button type="button" onClick={() => setReportSelection(null)} aria-label="ยกเลิกคำร้อง" className="cursor-pointer px-1 text-slate-400 hover:text-white">✕</button></div>}
       <DesktopCompanion
         isCallPanelVisible={isCallOpen && !isCallMinimized}
+        isCallActive={activeWindow === 'call'}
         isPerchedOnWindow={isPerchedOnWindow}
         isTerminalOpen={isTerminalOpen}
         isTerminalMinimized={isTerminalMinimized}
@@ -1402,9 +1372,11 @@ export default function LinuxDesktop({
         closingChoiceVisible={endingStage === 'apology'}
         onClosingChoice={handleClosingChoice}
         onCloseBubble={() => setShowBubble(false)}
+        onOpenBubble={() => setShowBubble(true)}
       />
       <PoliceCallWindow
         isOpen={isCallOpen} isMinimized={isCallMinimized}
+        isActive={activeWindow === 'call'}
         onActivate={() => setActiveWindow('call')} onMinimize={hideCall}
         phase={hasIncomingCase ? 'ringing' : policeConversation} callEndReason={callEndReason} messages={callMessages}
         typingText={callQueue.length ? splitCallText(callQueue[0].text).slice(0, typedCount).join('') : ''}
@@ -1418,7 +1390,7 @@ export default function LinuxDesktop({
         dashcamAttachment={dashcamAttachment} dashcamUploadProgress={dashcamUploadProgress} onOpenDashcam={handleOpenDashcam} endingStage={endingStage} onSendDashcamName={handleSendDashcamName}
         currentQuestion={currentGuidedQuestion} questionPhase={guidedSequence.phase} manualProgress={manualProgress}
         onSelectQuestion={handleSelectGuidedQuestion}
-        guidedAnswer={selectedEvidenceResult.complete ? selectedEvidenceResult.answer : guidedEvidenceAnswer} onSendGuidedAnswer={handleSendGuidedAnswer} isThinking={isThinking}
+        answerInFile={Boolean(guidedAnswerFile)} guidedAnswer={selectedEvidenceResult.complete ? selectedEvidenceResult.answer : guidedEvidenceAnswer} onSendGuidedAnswer={handleSendGuidedAnswer} isThinking={isThinking}
       />
       <TerminalWindow
         isTerminalOpen={isTerminalOpen}
@@ -1462,6 +1434,7 @@ export default function LinuxDesktop({
         manualEvidence={manualEvidence}
         selectedEvidenceIds={selectedEvidenceIds}
         onSelectEvidence={handleSelectManualEvidence}
+        onSendGuidedAnswer={handleSendGuidedAnswer}
       />
       <FaceScannerWindow
         isOpen={isScannerOpen}

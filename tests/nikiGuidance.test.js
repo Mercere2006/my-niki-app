@@ -24,10 +24,11 @@ test('ไกด์รับสาย รับไฟล์ และการส
 test('ไกด์คำถามเอกสารตามทางเลือกผู้เล่นและสถานะโฟลเดอร์', () => {
   const base = { followupPhase: 'active', documentsStage: 'complete', guidedPhase: 'ready', caseDocumentsLocation: 'desktop' };
   assert.match(getNextStepGuidance({ ...base, evidenceMode: 'idle' }), /กด.*คำถาม/);
-  assert.match(getNextStepGuidance({ ...base, evidenceMode: 'offer' }), /ช่วย|หาเอง/);
-  assert.match(getNextStepGuidance({ ...base, evidenceMode: 'manual' }), /กรอบ/);
-  assert.match(getNextStepGuidance({ ...base, evidenceMode: 'manual', guidedQuestionId: 'compare' }), /krit_statement\.txt.*parking_access_log\.txt/);
+  assert.match(getNextStepGuidance({ ...base, evidenceMode: 'offer' }), /กดกรอบคำถาม/);
+  assert.match(getNextStepGuidance({ ...base, evidenceMode: 'manual' }), /กดกรอบคำถาม/);
+  assert.match(getNextStepGuidance({ ...base, evidenceMode: 'assisting' }), /กำลังตรวจ/);
   assert.match(getNextStepGuidance({ ...base, guidedPhase: 'review' }), /ส่งคำตอบ/);
+  assert.match(getNextStepGuidance({ ...base, guidedPhase: 'review', hasGuidedAnswerFile: true }), /เอกสารคำตอบ/);
   assert.match(getNextStepGuidance({ ...base, evidenceMode: 'manual', caseDocumentsLocation: 'trash' }), /กู้คืน/);
 });
 

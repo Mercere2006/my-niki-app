@@ -7,6 +7,7 @@ export const dashcamPerson = {
   id: 'P-038', name: 'อัศวกร พรหมพิทักษ์', age: 36,
   occupation: 'ผู้ช่วยอัยการและเพื่อนร่วมงานของกฤตภาส',
   imageUrl: '/cases/parking/dashcam_asawakon.png',
+  profileImageUrl: '/cases/parking/asawakon_portrait.png',
 };
 export const endingQueue = [
   { text: 'แปปนะครับคุณเจ้าหน้าที่สายด่วน', delayAfter: 3000 },

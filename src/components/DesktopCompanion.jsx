@@ -4,6 +4,7 @@ import { moveWindow } from '../services/windowSizing';
 export default function DesktopCompanion({
   isPerchedOnWindow,
   isCallPanelVisible,
+  isCallActive,
   isTerminalOpen,
   isTerminalMinimized,
   showBubble,
@@ -31,8 +32,10 @@ export default function DesktopCompanion({
   closingChoiceVisible,
   onClosingChoice,
   onCloseBubble,
+  onOpenBubble,
 }) {
   const [offset, setOffset] = useState(null);
+  const [mobileExpanded, setMobileExpanded] = useState(false);
   const companionRef = useRef(null);
   const dragRef = useRef(null);
   const suppressClickRef = useRef(false);
@@ -92,14 +95,14 @@ export default function DesktopCompanion({
         <div
           ref={companionRef}
           style={offset ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
-          className={`absolute bottom-6 right-8 md:bottom-12 ${layoutBesideCall ? 'md:right-[376px] md:max-w-[calc(100vw-400px)]' : 'md:right-28'} ${isCallPanelVisible || analysisPromptVisible || downloadPromptVisible ? 'z-[45]' : 'z-20'} ${showBubble ? 'w-[34rem]' : 'w-auto'} flex max-w-[calc(100vw-4rem)] flex-col items-center`}
+          className={`desktop-companion ${isCallPanelVisible && isCallActive ? 'mobile-call-active' : ''} ${mobileExpanded && showBubble ? 'mobile-expanded' : ''} ${guidedEvidenceVisible && showBubble ? 'mobile-important' : ''} absolute bottom-6 right-8 md:bottom-12 ${layoutBesideCall ? 'md:right-[376px] md:max-w-[calc(100vw-400px)]' : 'md:right-28'} ${isCallPanelVisible || analysisPromptVisible || downloadPromptVisible ? 'z-[45]' : 'z-20'} ${showBubble ? 'w-[34rem]' : 'w-auto'} flex max-w-[calc(100vw-4rem)] flex-col items-center`}
         >
           
           {/* NIKI CYBER SPEECH BUBBLE */}
           {showBubble && (
-            <div className="relative mb-3 w-full animate-fade-in select-text">
+            <div className="niki-bubble relative mb-3 w-full animate-fade-in select-text">
               <div className="relative bg-[#070d18]/95 border-2 border-cyan-400/90 rounded-xl p-4 shadow-[0_0_20px_rgba(6,182,212,0.65)] backdrop-blur-md">
-                <button type="button" onClick={onCloseBubble} aria-label="ปิดกล่องข้อความ NIKI" title="ปิดกล่องข้อความ" className="absolute right-2 top-2 rounded px-1.5 py-1 text-sm leading-none text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-cyan-400">✕</button>
+                <button type="button" onClick={() => { setMobileExpanded(false); onCloseBubble(); }} aria-label="ปิดกล่องข้อความ NIKI" title="ปิดกล่องข้อความ" className="absolute right-2 top-2 rounded px-1.5 py-1 text-sm leading-none text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-cyan-400">✕</button>
                 
                 {/* แถบสีแดงประดับด้านซ้าย */}
                 <div className="flex items-start gap-2.5">
@@ -195,6 +198,11 @@ export default function DesktopCompanion({
             onPointerCancel={() => { dragRef.current = null; suppressClickRef.current = false; }}
             onClick={() => {
               if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+              if (window.matchMedia('(max-width: 639px)').matches && (!showBubble || (isCallPanelVisible && isCallActive && !mobileExpanded))) {
+                setMobileExpanded(true);
+                onOpenBubble();
+                return;
+              }
               handlePokeCapri();
             }}
             className="relative z-10 flex touch-none cursor-grab select-none flex-col items-center transition-transform duration-200 hover:scale-105 active:cursor-grabbing active:scale-95 focus-visible:outline-2 focus-visible:outline-cyan-400"

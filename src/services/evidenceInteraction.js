@@ -38,6 +38,14 @@ export function interpretEvidenceOffer(text) {
   return 'other';
 }
 
+export function isEvidenceHelpRequest(text, { awaitingReply = false } = {}) {
+  const value = String(text ?? '').normalize('NFC').replace(/\u0e4d\u0e32/g, 'ำ').toLowerCase().replace(/\s+/g, '').trim();
+  if (!value || interpretEvidenceOffer(value) === 'decline') return false;
+  const asksForEvidence = /^ช่วย(?:ฉัน|ผม|เรา|ชั้น|ชูม)?(?:(?:หา|ค้น)(?:คำตอบ|ข้อมูล|หลักฐาน)?|(?:ตอบ|ตรวจ|วิเคราะห์|สรุป|เรียง)(?:คำตอบ|คำถาม|ข้อมูล|หลักฐาน|เอกสาร|ไทม์ไลน์|เหตุการณ์)?|หน่อย|ที|ด้วย)?(?:ให้(?:ฉัน|ผม|เรา)?|หน่อย|ที|ด้วย|นะ|ได้ไหม|ได้มั้ย|ครับ|ค่ะ|คะ|สิ|ดิ|เลย|เถอะ|ๆ)*[.!?]*$/.test(value);
+  const acceptsOffer = /^(?:เอาสิ|เอาดิ|เอาเลย|เอา|ตกลง|ได้|ได้สิ|ได้ดิ|ได้เลย|โอเค|เค|จัดไป|ok|okay|yes|sure)(?:ครับ|ค่ะ|คะ|นะ|เลย|[.!?])*$/i.test(value);
+  return asksForEvidence || (awaitingReply && acceptsOffer);
+}
+
 export function getManualEvidence(questionId) {
   return evidenceByQuestion[questionId] || [];
 }

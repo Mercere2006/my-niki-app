@@ -39,11 +39,13 @@ export default function CaseFileWindow({
   manualEvidence = [],
   selectedEvidenceIds = [],
   onSelectEvidence = () => {},
+  onSendGuidedAnswer = () => {},
 }) {
   return (
       <DesktopWindow
         title="FILE EXPLORER"
         windowLabel="File Explorer"
+        initialPlacement="case-files"
         isOpen={isExplorerOpen && hasDownloadedCaseFiles}
         isMinimized={isExplorerMinimized}
         isActive={activeWindow === 'explorer'}
@@ -63,8 +65,8 @@ export default function CaseFileWindow({
               <div className={`flex-1 min-h-0 px-5 py-4 select-text ${selectedCaseFile.kind === 'cctv' ? 'flex flex-col' : 'overflow-auto'}`}>
                 {selectedCaseFile.kind === 'cctv' ? <div className="flex min-h-0 w-full flex-1 items-center justify-center" style={{ containerType: 'size' }}><div className="relative aspect-[30/17] overflow-hidden rounded border border-slate-700" style={{ width: 'min(100cqw, 176.470588cqh, 48rem)' }}>
                   <CctvImage src={selectedCaseFile.imageUrl} subject={selectedCaseFile.subject} className="!h-full" />
-                  {manualScanReady && selectedCaseFile.kind === 'cctv' && <button type="button" aria-label="สแกนใบหน้าในภาพด้วยตัวเอง" title="คลิกใบหน้าเพื่อสแกน" onClick={onManualScan} className={`absolute ${selectedCaseFile.subject === 'dashcam' ? 'left-[39%] top-[7%] h-[23%] w-[11%]' : selectedCaseFile.subject === 'victim' ? 'left-[14%] top-[51%] h-[19%] w-[11%]' : 'left-[37%] top-[24%] h-[17%] w-[10%]'} cursor-crosshair rounded-sm border-2 border-dashed border-cyan-300/70 bg-cyan-400/5 transition hover:border-cyan-300 hover:bg-cyan-400/15 focus-visible:outline-2 focus-visible:outline-cyan-200`} />}
-                </div></div> : <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col"><p className="mb-3 shrink-0 text-sm leading-relaxed text-slate-300">{selectedCaseFile.description}</p><article aria-label={`เนื้อหา ${selectedCaseFile.name}`} className="flex-1 rounded border border-slate-700 bg-slate-900/80 p-5 text-base leading-8 whitespace-pre-wrap text-slate-200 sm:p-6"><EvidenceText content={selectedCaseFile.content} evidence={manualEvidence.filter((item) => item.file === selectedCaseFile.name)} selectedIds={selectedEvidenceIds} onSelectEvidence={onSelectEvidence} /></article></div>}
+                  {manualScanReady && selectedCaseFile.kind === 'cctv' && <button type="button" aria-label="สแกนใบหน้าในภาพด้วยตัวเอง" title="คลิกใบหน้าเพื่อสแกน" onClick={onManualScan} className={`absolute ${selectedCaseFile.subject === 'dashcam' ? 'left-[39%] top-[7%] h-[23%] w-[11%]' : selectedCaseFile.subject === 'victim' ? 'left-[14%] top-[51%] h-[19%] w-[11%]' : 'left-[37%] top-[24%] h-[17%] w-[10%]'} max-sm:min-h-11 max-sm:min-w-11 cursor-crosshair rounded-sm border-2 border-dashed border-cyan-300/70 bg-cyan-400/5 transition hover:border-cyan-300 hover:bg-cyan-400/15 focus-visible:outline-2 focus-visible:outline-cyan-200`} />}
+                </div></div> : selectedCaseFile.kind === 'guided-answer' ? <article aria-label="เอกสารคำตอบของ NIKI" className="mx-auto w-full max-w-4xl space-y-4 rounded border border-cyan-900 bg-slate-900/80 p-4 text-sm leading-relaxed sm:p-6"><div><h2 className="font-bold text-cyan-300">คำถามของสายสืบ</h2><p className="mt-1 text-slate-100">{selectedCaseFile.question}</p></div><div><h3 className="mb-2 font-bold text-cyan-300">คำตอบ</h3><button type="button" onClick={() => onSendGuidedAnswer()} aria-label="ส่งคำตอบจากเอกสารให้สายสืบ" className="w-full cursor-pointer whitespace-pre-wrap rounded border border-amber-600/80 bg-amber-950/30 px-4 py-3 text-left text-sm leading-relaxed text-amber-100 hover:bg-amber-900/40 focus-visible:outline-2 focus-visible:outline-amber-300"><span className="mb-2 block font-bold text-amber-300">กดเพื่อส่งคำตอบให้สายสืบ</span>{selectedCaseFile.answer}</button></div><div className="whitespace-pre-wrap break-words border-t border-slate-700 pt-3 text-xs leading-relaxed text-slate-300">{selectedCaseFile.content}</div></article> : <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col"><p className="mb-3 shrink-0 text-sm leading-relaxed text-slate-300">{selectedCaseFile.description}</p><article aria-label={`เนื้อหา ${selectedCaseFile.name}`} className="flex-1 rounded border border-slate-700 bg-slate-900/80 p-5 text-base leading-8 whitespace-pre-wrap text-slate-200 sm:p-6"><EvidenceText content={selectedCaseFile.content} evidence={manualEvidence.filter((item) => item.file === selectedCaseFile.name)} selectedIds={selectedEvidenceIds} onSelectEvidence={onSelectEvidence} /></article></div>}
               </div>
             </>
           ) : (

@@ -25,11 +25,12 @@ export const people = [{
   lastKnownAddress: 'เลขที่ 88 ถนนแสงจันทร์\nแขวงศิรานคร เขตศิรานคร กรุงเทพมหานคร 10000',
 }, {
   ...dashcamPerson,
+  imageUrl: dashcamPerson.profileImageUrl,
   gender: 'ชาย', nationality: 'ไทย', eyeColor: 'น้ำตาล', height: '177 ซม.',
   dateOfBirth: '8 เมษายน 2533', placeOfBirth: 'กรุงเทพมหานคร',
   distinguishingMarks: 'ไม่มีข้อมูล', aliases: 'ไม่มีข้อมูล', bloodType: 'A+',
   maritalStatus: 'โสด', firearmLicense: 'ไม่มีข้อมูล',
-  lastKnownAddress: 'ไม่มีข้อมูล',
+  lastKnownAddress: 'เลขที่ 128 ซอยแสงดาว\nแขวงพระโขนงเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
 }];
 
 const normalizeName = (value) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('th');
