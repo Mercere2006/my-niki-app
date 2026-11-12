@@ -11,6 +11,7 @@ export default function TerminalWindow({
   showBubble,
   capriMessage,
   handlePokeCapri,
+  onCloseBubble,
   getCapriSprite,
   cliScrollRef,
   cliHistory,
@@ -35,11 +36,12 @@ export default function TerminalWindow({
             <div className="absolute -top-32 right-10 z-50 flex flex-col items-center pointer-events-auto select-none">
               {showBubble && (
                 <div className="relative mb-2 max-w-xs bg-[#070d18]/95 border-2 border-cyan-400/90 rounded-xl p-2.5 shadow-[0_0_15px_rgba(6,182,212,0.65)] text-xs text-sky-200 font-sans">
+                  <button type="button" onClick={onCloseBubble} aria-label="ปิดกล่องข้อความ NIKI" title="ปิดกล่องข้อความ" className="absolute right-1 top-1 rounded px-1.5 py-1 text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-cyan-400">✕</button>
                   <div className="flex items-center gap-1.5 font-mono text-[10px] text-rose-400 font-bold mb-1">
                     <img src="/capri/chip.png" alt="Chip" className="w-3 h-3" />
                     NIKI SAYS:
                   </div>
-                  <div>{capriMessage}</div>
+                  <div className="pr-6">{capriMessage}</div>
                   <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#070d18] border-r border-b border-cyan-400 rotate-45"></div>
                 </div>
               )}

@@ -4,6 +4,14 @@ import { initialReportConversation, advanceReportConversation } from '../src/ser
 import { POLICE_PREFIX } from '../src/services/policeConversation.js';
 import * as reportConversation from '../src/services/reportConversation.js';
 
+test('ปิดแท็บเมื่อข้อความออกจากการสนทนาสิ้นสุดในแต่ละสาย', () => {
+  const text = '[สายสืบภัทรวัฒน์ อนันต์กุลได้ออกจากการสนทนา]';
+  assert.equal(reportConversation.shouldCloseCallAfterMessage({ after: 'report', raw: text, speaker: 'system' }), true);
+  assert.equal(reportConversation.shouldCloseCallAfterMessage({ after: 'ending', text, speaker: 'system' }), true);
+  assert.equal(reportConversation.shouldCloseCallAfterMessage({ after: 'report', raw: reportConversation.REPORT_SUSPECT_REQUEST, speaker: 'officer' }), false);
+  assert.equal(reportConversation.shouldCloseCallAfterMessage({ after: 'report', raw: text, speaker: 'you' }), false);
+});
+
 test('หลังสายสืบออกจากการสนทนา NIKI รู้ว่าส่งเบาะแสแล้ว', () => {
   assert.equal(reportConversation.getNikiConversationState('ACTIVE', 'address-reply'), 'ACTIVE');
   assert.equal(reportConversation.getNikiConversationState('ACTIVE', 'complete'), 'CASE_CLOSED');

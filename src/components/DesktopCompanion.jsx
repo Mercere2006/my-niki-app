@@ -30,6 +30,7 @@ export default function DesktopCompanion({
   onDismissGuidedEvidence,
   closingChoiceVisible,
   onClosingChoice,
+  onCloseBubble,
 }) {
   const [offset, setOffset] = useState(null);
   const companionRef = useRef(null);
@@ -98,12 +99,13 @@ export default function DesktopCompanion({
           {showBubble && (
             <div className="relative mb-3 w-full animate-fade-in select-text">
               <div className="relative bg-[#070d18]/95 border-2 border-cyan-400/90 rounded-xl p-4 shadow-[0_0_20px_rgba(6,182,212,0.65)] backdrop-blur-md">
+                <button type="button" onClick={onCloseBubble} aria-label="ปิดกล่องข้อความ NIKI" title="ปิดกล่องข้อความ" className="absolute right-2 top-2 rounded px-1.5 py-1 text-sm leading-none text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-cyan-400">✕</button>
                 
                 {/* แถบสีแดงประดับด้านซ้าย */}
                 <div className="flex items-start gap-2.5">
                   <div className="w-1 self-stretch bg-rose-500 rounded-full shrink-0 shadow-[0_0_8px_#f43f5e]"></div>
                   
-                  <div className="flex-1 font-mono text-xs leading-relaxed space-y-1.5">
+                  <div className="min-w-0 flex-1 pr-6 font-mono text-xs leading-relaxed space-y-1.5">
                     {/* บรรทัดคำสั่งของผู้เล่นสไตล์ NIKI (> คุณ: ...) */}
                     {lastPlayerInput && (
                       <div className="text-slate-400 font-mono text-xs break-words">
@@ -114,7 +116,7 @@ export default function DesktopCompanion({
                     {/* ข้อความตอบกลับของ NIKI */}
                     <div className="text-sky-200 flex items-start gap-1.5 font-sans leading-relaxed">
                       <span className="text-rose-400 font-bold font-mono tracking-wider shrink-0">NIKI:</span>
-                      <span className="max-h-[min(12rem,25vh)] overflow-y-auto whitespace-pre-wrap font-medium text-sm break-words">
+                      <span className="min-w-0 flex-1 max-h-[min(12rem,25vh)] overflow-y-auto whitespace-pre-wrap font-medium text-sm break-words">
                         {capriMessage}
                       </span>
                       {isThinking && (
@@ -130,7 +132,7 @@ export default function DesktopCompanion({
                 {guidedEvidenceVisible && <div className="mt-2 flex items-center justify-between gap-2 rounded border border-cyan-800 bg-cyan-950/40 px-2 py-1 text-xs text-cyan-200"><span>คำถามจากสายสืบภัทรวัฒน์ อนันต์กุล</span>{!isFollowupCallActive && <button type="button" onClick={onDismissGuidedEvidence} className="cursor-pointer text-cyan-300 underline hover:text-white">กลับไปคุยเล่น</button>}</div>}
                 {/* ช่องพิมพ์ตอบ NIKI */}
                 {closingChoiceVisible ? <button type="button" onClick={onClosingChoice} className="mt-3 w-full rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm text-amber-200 hover:bg-amber-950/40">ไม่เป็นไร NIKI</button> : <form onSubmit={handlePlayerSubmit} className="mt-3 pt-2 border-t border-cyan-900/60 flex gap-2">
-                  <div className="flex-1 relative flex items-center">
+                  <div className="min-w-0 flex-1 relative flex items-center">
                     <span className="absolute left-2.5 text-xs text-cyan-400 font-mono">&gt; คุณ:</span>
                     <input
                       ref={inputRef}
@@ -144,13 +146,13 @@ export default function DesktopCompanion({
                           ? "กดรับสายจากหน้าต่างสายสนทนา..."
                           : "คุยกับ NIKI เช่น 'สวัสดี', 'กินข้าวยัง' หรือชวนคุยเรื่องทั่วไป..."
                       }
-                      className="w-full bg-slate-950/90 border border-cyan-500/60 rounded px-2.5 pl-18 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 font-mono"
+                      className="min-w-0 w-full text-ellipsis bg-slate-950/90 border border-cyan-500/60 rounded px-2.5 pl-18 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 font-mono"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={isThinking || !playerInput.trim()}
-                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-sm font-bold transition disabled:opacity-40 cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+                    className="shrink-0 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-sm font-bold transition disabled:opacity-40 cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.4)]"
                   >
                     ส่ง
                   </button>
@@ -162,7 +164,7 @@ export default function DesktopCompanion({
                 )}
 
                 {/* ข้อความบอก ESC STOPS ME & ลิงก์ตั้งค่า API Key */}
-                <div className="text-[9px] font-mono text-slate-500 flex justify-between items-center mt-1.5">
+                <div className="text-[9px] font-mono text-slate-500 flex flex-wrap gap-x-2 gap-y-1 justify-between items-center mt-1.5">
                   <button
                     type="button"
                     onClick={() => {

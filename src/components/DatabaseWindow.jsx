@@ -24,7 +24,8 @@ function KnownFacts({ person, reportStage, reportSelection, isReportTarget, onSe
 
 export default function DatabaseWindow({ isOpen, isMinimized, isActive, onActivate, onMinimize, onClose, reportStage, reportSelection, reportPersonId, reportReady, onSendName, onSendAddress, onPersonFound }) {
   const [query, setQuery] = useGameState('humanQuery', '');
-  const [result, setResult] = useGameState('humanResult', null);
+  const [savedResult, setResult] = useGameState('humanResult', null);
+  const result = savedResult?.name ? findPersonByName(savedResult.name) ?? savedResult : null;
   const [searched, setSearched] = useGameState('humanSearched', false);
   const isReportTarget = reportReady && result?.id === reportPersonId;
   const search = (event) => {

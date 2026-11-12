@@ -15,15 +15,19 @@ export const callChoices = [
 
 export const callbackGreeting = 'โถ่คุณเจ้าหน้าที่สายด่วน วางสายผมทำไมเนี่ย';
 export const callbackChoice = 'ขอโทษทีครับ พอดีผมกดผิด';
+export const missedCallbackGreeting = 'คุณเจ้าหน้าที่สายด่วน ทำไมก่อนหน้านี้ไม่รับสายผมล่ะ';
+export const missedCallbackChoice = 'ขอโทษทีครับ พอดีผมเพิ่งว่าง';
+export const RING_TIMEOUT_MS = 30000;
+export const getRingDeadline = (startedAt) => startedAt + RING_TIMEOUT_MS;
+export const isRingExpired = (deadline, now = Date.now()) => typeof deadline === 'number' && Number.isFinite(deadline) && now >= deadline;
 
 export function isOfficerOffline(reportStage, isFollowupCall, phase) {
   return reportStage === 'complete' && !isFollowupCall && phase !== 'declined';
 }
 
-export function getCallbackContinuation(isFollowupCall) {
+export function getCallbackContinuation(isFollowupCall, reason = 'declined') {
   return [
-    'งั้นเหรอครับ',
-    'เพื่อไม่ให้เป็นการเสียเวลา เรามาเข้าเรื่องกันเลยดีกว่า',
+    ...(reason === 'missed' ? ['อ่าวเหรอครับ', 'แต่ตอนนี้คุณว่างแล้วใช่ไหม', 'งั้นผมขอเข้าเรื่องเลยนะ'] : ['งั้นเหรอครับ', 'เพื่อไม่ให้เป็นการเสียเวลา เรามาเข้าเรื่องกันเลยดีกว่า']),
     ...(isFollowupCall ? followupIntroduction.slice(1) : getCallBriefing('direct').slice(1)),
   ];
 }

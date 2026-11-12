@@ -22,7 +22,7 @@ export const people = [{
   dateOfBirth: '12 สิงหาคม 2534', placeOfBirth: 'อำเภอเมือง จังหวัดศิรานคร',
   distinguishingMarks: 'ไม่มีข้อมูล', aliases: 'ไม่มีข้อมูล', bloodType: 'B+',
   maritalStatus: 'โสด', firearmLicense: 'ไม่มีข้อมูล',
-  lastKnownAddress: 'เลขที่ 88 ถนนแสงจันทร์\nแขวงศิรานคร เขตศิรานคร จังหวัดศิรานคร 10000',
+  lastKnownAddress: 'เลขที่ 88 ถนนแสงจันทร์\nแขวงศิรานคร เขตศิรานคร กรุงเทพมหานคร 10000',
 }, {
   ...dashcamPerson,
   gender: 'ชาย', nationality: 'ไทย', eyeColor: 'น้ำตาล', height: '177 ซม.',

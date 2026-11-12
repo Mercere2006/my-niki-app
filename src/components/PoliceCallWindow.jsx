@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { callChoices, callbackChoice, isOfficerOffline, stripPolicePrefix } from '../services/policeCall';
+import { callChoices, callbackChoice, missedCallbackChoice, isOfficerOffline, stripPolicePrefix } from '../services/policeCall';
 import { REPORT_SUSPECT_REQUEST, REPORT_ADDRESS_REQUEST } from '../services/reportConversation';
 
-export default function PoliceCallWindow({ isOpen, isMinimized, onActivate, onMinimize, phase, messages, typingText, isTyping, onAnswer, onDecline, onChoice, onCallbackChoice, attachment, uploadProgress, onOpenPhoto, reportStage, onSelectReportRequest, victimReplyReady, onSendVictimReply, isFollowupCall, onOpenDocuments, documentsAttachment, documentsUploadProgress, currentQuestion, questionPhase, manualProgress, guidedAnswer, onSendGuidedAnswer, onSelectQuestion, dashcamAttachment, dashcamUploadProgress, onOpenDashcam, endingStage, onSendDashcamName, isThinking }) {
+export default function PoliceCallWindow({ isOpen, isMinimized, onActivate, onMinimize, phase, callEndReason, messages, typingText, isTyping, onAnswer, onDecline, onChoice, onCallbackChoice, attachment, uploadProgress, onOpenPhoto, reportStage, onSelectReportRequest, victimReplyReady, onSendVictimReply, isFollowupCall, onOpenDocuments, documentsAttachment, documentsUploadProgress, currentQuestion, questionPhase, manualProgress, guidedAnswer, onSendGuidedAnswer, onSelectQuestion, dashcamAttachment, dashcamUploadProgress, onOpenDashcam, endingStage, onSendDashcamName, isThinking }) {
   const scrollRef = useRef(null);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, typingText, phase]);
   const ringing = phase === 'ringing';
@@ -26,7 +26,7 @@ export default function PoliceCallWindow({ isOpen, isMinimized, onActivate, onMi
             <button type="button" onClick={onAnswer} className="flex items-center justify-center gap-2 bg-emerald-950 px-4 py-3 text-emerald-400 hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-emerald-300"><span aria-hidden="true">☎</span>รับสาย</button>
             <button type="button" onClick={onDecline} className="flex items-center justify-center gap-2 bg-rose-950 px-4 py-3 text-rose-400 hover:bg-rose-900 focus-visible:outline-2 focus-visible:outline-rose-300"><span aria-hidden="true">☎</span>วางสาย</button>
           </div>
-        </div> : declined ? <div className="space-y-3 px-4 py-5 text-center text-sm text-slate-300"><p>วางสายแล้ว</p><button type="button" onClick={onAnswer} className="rounded border border-cyan-700 bg-cyan-950 px-4 py-2 font-semibold text-cyan-200 hover:bg-cyan-900">โทรกลับหาสายสืบ</button></div> : <>
+        </div> : declined ? <div className="space-y-3 px-4 py-5 text-center text-sm text-slate-300"><p>{callEndReason === 'missed' ? 'ไม่ได้รับสาย' : 'วางสายแล้ว'}</p><button type="button" onClick={onAnswer} className="rounded border border-cyan-700 bg-cyan-950 px-4 py-2 font-semibold text-cyan-200 hover:bg-cyan-900">โทรกลับหาสายสืบ</button></div> : <>
           <div ref={scrollRef} role="log" aria-label="บทสนทนาสายสืบภัทรวัฒน์ อนันต์กุล" aria-live="polite" className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
             {messages.map((message, index) => {
               if (message.speaker === 'dashcam') {
@@ -60,7 +60,7 @@ export default function PoliceCallWindow({ isOpen, isMinimized, onActivate, onMi
             {isTyping && <div className="rounded border border-cyan-950 bg-cyan-950/55 px-3 py-2 text-sm leading-relaxed text-cyan-100"><span aria-hidden="true">{typingText}<span className="ml-0.5 animate-pulse">▌</span></span><span className="sr-only">สายสืบกำลังพิมพ์ข้อความ</span></div>}
           </div>
           {phase === 'choosing' && <div className="space-y-2 border-t border-cyan-950 p-3">{callChoices.map((choice) => <button key={choice.id} type="button" onClick={() => onChoice(choice.id)} className="block w-full rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm text-amber-200 hover:bg-amber-950/40">{choice.label}</button>)}</div>}
-          {phase === 'callback-choosing' && <div className="border-t border-cyan-950 p-3"><button type="button" onClick={onCallbackChoice} className="block w-full rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm text-amber-200 hover:bg-amber-950/40">{callbackChoice}</button></div>}
+          {phase === 'callback-choosing' && <div className="border-t border-cyan-950 p-3"><button type="button" onClick={onCallbackChoice} className="block w-full rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm text-amber-200 hover:bg-amber-950/40">{callEndReason === 'missed' ? missedCallbackChoice : callbackChoice}</button></div>}
           {victimReplyReady && reportStage === 'awaiting-victim' && <div className="border-t border-cyan-950 p-3"><button type="button" onClick={onSendVictimReply} className="block w-full rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm text-amber-200 hover:bg-amber-950/40">นายธันวา วรากร</button></div>}
           {endingStage === 'awaiting-name' && <div className="border-t border-cyan-950 p-3"><button type="button" onClick={onSendDashcamName} className="block w-full rounded border border-amber-600/70 bg-slate-950 px-3 py-2 text-left text-sm text-amber-200 hover:bg-amber-950/40">นายอัศวกร พรหมพิทักษ์</button></div>}
           {manualProgress && questionPhase === 'ready' && manualProgress.total > 1 && <div role="status" className="border-t border-cyan-950 px-3 py-2 text-xs text-cyan-200">เลือกหลักฐานแล้ว {manualProgress.selectedCount} / {manualProgress.total} ข้อความ</div>}

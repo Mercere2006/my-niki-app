@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import DesktopWindow from './DesktopWindow';
 import CctvImage from './CctvImage';
 import { cameraPerson, cardHolderProfile } from '../services/caseFiles';
@@ -5,6 +6,17 @@ import { dashcamPerson } from '../services/caseEnding';
 
 export default function FaceScannerWindow({ isOpen, isMinimized, isActive, onActivate, onMinimize, onClose, evidence, stage, subject = 'suspect', onOpenHumanDB }) {
   const person = subject === 'dashcam' ? dashcamPerson : subject === 'victim' ? cardHolderProfile : cameraPerson;
+  const [copyStatus, setCopyStatus] = useState(null);
+  const currentCopyStatus = copyStatus?.name === person.name ? copyStatus.status : null;
+  const copyName = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(person.name);
+      setCopyStatus({ name: person.name, status: 'copied' });
+    } catch {
+      setCopyStatus({ name: person.name, status: 'unavailable' });
+    }
+  };
   const status = {
     scanning: 'กำลังตรวจจับใบหน้า...',
     'low-quality': 'คุณภาพต่ำ // ภาพไม่ชัด',
@@ -25,10 +37,15 @@ export default function FaceScannerWindow({ isOpen, isMinimized, isActive, onAct
               <div className="mb-2 text-xs text-cyan-300">{subject === 'dashcam' ? 'กล้องหน้ารถ // หลักฐานเพิ่มเติม' : subject === 'victim' ? 'CAM 02 // ผู้เสียชีวิต' : 'CAM 02 // บุคคลก่อนเกิดเหตุ'}</div>
               <div className="relative mx-auto max-w-[320px] overflow-hidden border border-cyan-800 bg-black">
                 <CctvImage src={evidence.cctv.imageUrl} subject={subject} focused />
-                <div className={`absolute left-[25%] top-[15%] h-[55%] w-[50%] border-2 ${stage === 'low-quality' ? 'border-rose-500 bg-rose-500/20' : 'border-emerald-400 bg-emerald-500/10'}`}>
+                <div className={`absolute ${subject === 'dashcam' ? 'left-[30%] top-[34%] h-[58%] w-[54%]' : 'left-[25%] top-[15%] h-[55%] w-[50%]'} border-2 ${stage === 'low-quality' ? 'border-rose-500 bg-rose-500/20' : 'border-emerald-400 bg-emerald-500/10'}`}>
                   {(stage === 'scanning' || stage === 'analyzing') && <div className="face-scan-sweep absolute inset-x-0 h-1 bg-emerald-300 shadow-[0_0_12px_#34d399]" />}
                   {stage === 'low-quality' && <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-rose-600 px-1 py-2 text-center font-mono text-xs font-bold text-black">ภาพไม่ชัด</div>}
-                  {(stage === 'analyzing' || stage === 'complete') && <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full"><path d="M12 24 L44 16 L83 22 L70 47 L88 65 L52 87 L18 65 L31 46 Z M12 24 L70 47 L18 65 M44 16 L31 46 L52 87 M83 22 L31 46 L88 65 M31 46 L70 47 L52 87" fill="none" stroke="#4ade80" strokeWidth="1.2" /></svg>}
+                  {(stage === 'analyzing' || stage === 'complete') && <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+                    {subject === 'dashcam' ? <g fill="none" stroke="#4ade80" strokeWidth="0.9" strokeLinejoin="round">
+                      <path d="M23 16 L46 8 L73 10 L87 23 L90 41 L86 62 L73 83 L54 96 L35 87 L20 72 L11 50 L13 34 Z M30 30 L44 32 L52 29 M67 26 L76 27 L82 24 M44 32 L66 54 L76 27 M66 54 L54 60 L73 57 M54 60 L48 74 L60 76 L71 71 L73 57 M48 74 L54 96 L60 76 L73 83 M20 72 L48 74 M86 62 L71 71" />
+                      <g fill="#4ade80" stroke="none"><circle cx="44" cy="32" r="1.6" /><circle cx="76" cy="27" r="1.6" /><circle cx="66" cy="54" r="1.6" /><circle cx="60" cy="76" r="1.6" /><circle cx="54" cy="96" r="1.6" /></g>
+                    </g> : <path d="M12 24 L44 16 L83 22 L70 47 L88 65 L52 87 L18 65 L31 46 Z M12 24 L70 47 L18 65 M44 16 L31 46 L52 87 M83 22 L31 46 L88 65 M31 46 L70 47 L52 87" fill="none" stroke="#4ade80" strokeWidth="1.2" />}
+                  </svg>}
                 </div>
                 <div className="absolute left-2 top-2 font-mono text-[10px] text-white/80">● REC &nbsp; {subject === 'dashcam' ? 'DASHCAM' : 'CAM 02'}</div>
               </div>
@@ -38,7 +55,7 @@ export default function FaceScannerWindow({ isOpen, isMinimized, isActive, onAct
               {stage === 'scanning' && <p className="text-sm leading-relaxed text-emerald-300">กำลังค้นหาตำแหน่งใบหน้าในภาพจากกล้อง...</p>}
               {stage === 'low-quality' && <div className="space-y-3"><div className="font-mono text-sm font-bold text-rose-400">⚠ ภาพคุณภาพต่ำ</div><p className="text-xs leading-relaxed text-slate-300">ภาพจากกล้องมีความละเอียดต่ำเกินไป จึงยังระบุตัวบุคคลไม่ได้</p></div>}
               {stage === 'analyzing' && <div className="space-y-3"><div className="font-mono text-sm font-bold text-emerald-300">NIKI // กำลังวิเคราะห์</div><p className="text-xs leading-relaxed text-slate-300">กำลังจำลองการวิเคราะห์ภาพและค้นหาแฟ้มที่เกี่ยวข้อง...</p><div className="h-1 overflow-hidden bg-slate-800"><div className="h-full w-2/3 animate-pulse bg-emerald-400" /></div></div>}
-              {stage === 'complete' && <div className="space-y-3" role="status"><div className="border-b border-cyan-900 pb-2 font-mono text-xs font-bold text-cyan-300">HUMANDB // ผลตรวจสอบเบื้องต้น</div>{subject === 'dashcam' ? <div className="w-full max-w-64 border border-cyan-900"><CctvImage src={person.imageUrl} subject="dashcam" focused /></div> : <img src={person.imageUrl} alt="ภาพบุคคลในแฟ้มคดีสมมติ" className="block h-auto w-full max-w-64 border border-cyan-900" />}<div className="text-base font-bold text-white">{person.name}</div><p className="text-xs leading-relaxed text-slate-300">{subject === 'victim' ? `ระบบพบชื่อ ${person.name} ค้นใน HumanDB แล้วส่งชื่อให้เจ้าหน้าที่` : `ผลตรวจเบื้องต้นชี้ว่าบุคคลในภาพอาจเป็น ${person.name} ค้นใน HumanDB แล้วส่งเบาะแสให้เจ้าหน้าที่ตรวจสอบต่อ`}</p><button type="button" onClick={onOpenHumanDB} className="rounded border border-cyan-500 bg-cyan-950 px-3 py-2 text-xs font-bold text-cyan-100 hover:bg-cyan-900">เปิด HumanDB</button></div>}
+              {stage === 'complete' && <div className="space-y-3" role="status"><div className="border-b border-cyan-900 pb-2 font-mono text-xs font-bold text-cyan-300">HUMANDB // ผลตรวจสอบเบื้องต้น</div>{subject === 'dashcam' ? <div className="w-full max-w-64 border border-cyan-900"><CctvImage src={person.imageUrl} subject="dashcam" focused /></div> : <img src={person.imageUrl} alt="ภาพบุคคลในแฟ้มคดีสมมติ" className="block h-auto w-full max-w-64 border border-cyan-900" />}<div className="flex flex-wrap items-center gap-2"><span className="select-text cursor-text text-base font-bold text-white">{person.name}</span><button type="button" onClick={copyName} aria-label={`คัดลอกชื่อ ${person.name}`} className="rounded border border-cyan-800 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-950 focus-visible:outline-2 focus-visible:outline-cyan-400">{currentCopyStatus === 'copied' ? 'คัดลอกแล้ว' : 'คัดลอกชื่อ'}</button></div>{currentCopyStatus === 'unavailable' && <p className="text-xs text-amber-300">คัดลอกอัตโนมัติไม่ได้ เลือกชื่อแล้วกด Ctrl+C ได้เลย</p>}<p className="text-xs leading-relaxed text-slate-300">{subject === 'victim' ? `ระบบพบชื่อ ${person.name} ค้นใน HumanDB แล้วส่งชื่อให้เจ้าหน้าที่` : `ผลตรวจเบื้องต้นชี้ว่าบุคคลในภาพอาจเป็น ${person.name} ค้นใน HumanDB แล้วส่งเบาะแสให้เจ้าหน้าที่ตรวจสอบต่อ`}</p><button type="button" onClick={onOpenHumanDB} className="rounded border border-cyan-500 bg-cyan-950 px-3 py-2 text-xs font-bold text-cyan-100 hover:bg-cyan-900">เปิด HumanDB</button></div>}
             </div>
           </div>
         )}

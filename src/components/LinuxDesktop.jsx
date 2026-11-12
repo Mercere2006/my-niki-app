@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getBrainConfig, askCapriBrain, askEvidenceBrainResult, askTimelineBrain } from '../services/capriBrain';
 import { POLICE_PREFIX } from '../services/policeConversation';
 import { initialAttachment, advanceAttachment } from '../services/callAttachment';
-import { initialNikiMessage, callGreeting, callChoices, getCallBriefing, callbackGreeting, callbackChoice, getCallbackContinuation, splitCallText, stripPolicePrefix } from '../services/policeCall';
+import { initialNikiMessage, callGreeting, callChoices, getCallBriefing, callbackGreeting, callbackChoice, missedCallbackGreeting, missedCallbackChoice, getCallbackContinuation, getRingDeadline, isRingExpired, splitCallText, stripPolicePrefix } from '../services/policeCall';
 import { playIncomingCaseSound } from '../services/incomingCaseSound';
 import { caseFiles, cameraPerson, cardHolderProfile } from '../services/caseFiles';
 import { prepareFaceScan, interpretAnalysisReply } from '../services/caseAnalysis';
@@ -10,12 +10,14 @@ import { getOpenedEvidence } from '../services/evidenceAnalysis';
 import { initialGuidedSequence, advanceGuidedSequence } from '../services/guidedEvidence';
 import { interpretEvidenceOffer, getManualEvidence, getManualEvidenceResult } from '../services/evidenceInteraction';
 import { FOLLOWUP_DELAY_MS, INTERTITLE_MS, nextFollowupPhase, followupIntroduction, followupFiles, followupQuestions as guidedEvidenceQuestions, followupAcknowledgements, formatTimelineReply, inspectSimulatedDocuments } from '../services/caseFollowup';
-import { dashcamFiles, dashcamPerson, endingQueue, endingReply, advanceEnding } from '../services/caseEnding';
+import { dashcamFiles, dashcamPerson, endingQueue, endingReply, advanceEnding, END_SCREEN_DELAY_MS } from '../services/caseEnding';
 import { nextFaceScanStage } from '../services/faceScanFlow';
-import { initialReportConversation, advanceReportConversation, canMatchReportTarget, canOfferVictimReply, getNikiConversationState, isReportProfileEligible, REPORT_SUSPECT_REQUEST } from '../services/reportConversation';
+import { initialReportConversation, advanceReportConversation, canMatchReportTarget, canOfferVictimReply, getNikiConversationState, isReportProfileEligible, shouldCloseCallAfterMessage, REPORT_END_MESSAGE, REPORT_SUSPECT_REQUEST } from '../services/reportConversation';
 import { useGameState } from '../hooks/useGameState';
 import { readGameValue, writeGameValue, scheduleAtDeadline } from '../services/gamePersistence';
 import { desktopFolders, folderLocation, moveFolderToTrash, restoreFolder, deleteFolderPermanently, TRASH_FOLDER_DRAG } from '../services/trash';
+import { isGuidanceRequest, getNextStepGuidance } from '../services/nikiGuidance';
+import { playNikiGuidanceSound } from '../services/nikiGuidanceSound';
 import DesktopTopBar from './DesktopTopBar';
 import DesktopTaskbar from './DesktopTaskbar';
 import PoliceCallWindow from './PoliceCallWindow';
@@ -71,10 +73,13 @@ export default function LinuxDesktop({
   const [dashcamAttachment, setDashcamAttachment] = useGameState('dashcamAttachment', initialAttachment, restoreAttachment);
   const [dashcamUploadProgress, setDashcamUploadProgress] = useGameState('dashcamUploadProgress', 0);
   const [endingStage, setEndingStage] = useGameState('endingStage', 'idle');
+  const [showFinalScreen, setShowFinalScreen] = useGameState('showFinalScreen', false);
   const dashcamReleased = dashcamAttachment.stage === 'complete';
   const [followupPhase, setFollowupPhase] = useGameState('followupPhase', 'pending');
   const [intertitleTypedCount, setIntertitleTypedCount] = useGameState('intertitleTypedCount', 0);
   const [incomingDeadline, setIncomingDeadline] = useGameState('incomingDeadline', () => Date.now() + 10000);
+  const [callRingDeadline, setCallRingDeadline] = useGameState('callRingDeadline', null);
+  const [callEndReason, setCallEndReason] = useGameState('callEndReason', 'declined');
   const documentsReleased = documentsAttachment.stage === 'complete';
   const [typedCount, setTypedCount] = useState(0);
   const [isTerminalOpen, setIsTerminalOpen] = useGameState('isTerminalOpen', false);
@@ -144,8 +149,57 @@ export default function LinuxDesktop({
   const cliInputRef = useRef(null);
   const cliScrollRef = useRef(null);
   const cancelCaseSoundRef = useRef(null);
+  const cancelGuidanceSoundRef = useRef(null);
   const followupDeadlineRef = useRef(null);
   const intertitleStartedAtRef = useRef(null);
+  const finalScreenDeadlineRef = useRef(null);
+  const sayGuidance = useCallback((message) => {
+    setCapriMessage(message);
+    cancelGuidanceSoundRef.current?.();
+    cancelGuidanceSoundRef.current = playNikiGuidanceSound({ muted: isMuted || isPoweredOff });
+  }, [isMuted, isPoweredOff, setCapriMessage]);
+
+  useEffect(() => {
+    if (isMuted || isPoweredOff) cancelGuidanceSoundRef.current?.();
+  }, [isMuted, isPoweredOff]);
+  useEffect(() => () => cancelGuidanceSoundRef.current?.(), []);
+  useEffect(() => {
+    if (endingStage !== 'complete' || showFinalScreen || isPoweredOff) return;
+    let deadline = finalScreenDeadlineRef.current ?? readGameValue('finalScreenDeadline', null);
+    if (typeof deadline !== 'number' || !Number.isFinite(deadline)) {
+      deadline = Date.now() + END_SCREEN_DELAY_MS;
+      finalScreenDeadlineRef.current = deadline;
+      writeGameValue('finalScreenDeadline', deadline);
+    }
+    return scheduleAtDeadline({ deadline, onDue: () => {
+      finalScreenDeadlineRef.current = null;
+      writeGameValue('finalScreenDeadline', null);
+      writeGameValue('showFinalScreen', true);
+      setShowFinalScreen(true);
+    } });
+  }, [endingStage, showFinalScreen, isPoweredOff, setShowFinalScreen]);
+  const handleMissedCall = useCallback(() => {
+    cancelCaseSoundRef.current?.();
+    writeGameValue('callRingDeadline', null);
+    setCallRingDeadline(null);
+    setHasIncomingCase(false);
+    setCallEndReason('missed');
+    setPoliceConversation('declined');
+    setCapriAnim('talk');
+    setCapriMessage('ชูม ไม่ได้รับสายจากภัทรวัฒน์ ถ้าพร้อมแล้วกดโทรกลับในหน้าสายสนทนาได้เลยนะ');
+    setShowBubble(true);
+    if (isCallMinimized) { setUnreadPoliceMessage(true); setShowPoliceNotice(true); }
+  }, [isCallMinimized, setCallRingDeadline, setHasIncomingCase, setCallEndReason, setPoliceConversation, setCapriMessage, setShowBubble, setUnreadPoliceMessage, setShowPoliceNotice]);
+
+  useEffect(() => {
+    if (!hasIncomingCase || isPoweredOff) return;
+    const deadline = typeof callRingDeadline === 'number' && Number.isFinite(callRingDeadline) ? callRingDeadline : getRingDeadline(Date.now());
+    if (deadline !== callRingDeadline) {
+      writeGameValue('callRingDeadline', deadline);
+      setCallRingDeadline(deadline);
+    }
+    return scheduleAtDeadline({ deadline, onDue: handleMissedCall });
+  }, [hasIncomingCase, isPoweredOff, callRingDeadline, handleMissedCall, setCallRingDeadline]);
   const openCall = () => {
     setUnreadPoliceMessage(false);
     setShowPoliceNotice(false);
@@ -278,19 +332,19 @@ export default function LinuxDesktop({
     setSelectedCaseFile(file);
     if (file.subject === 'dashcam' && endingStage === 'awaiting-face') {
       setShowBubble(true);
-      setCapriMessage('ชูม ลองคลิกใบหน้าคนในภาพจากกล้องหน้ารถเพื่อสแกนดูนะ');
+      sayGuidance('ชูม ลองคลิกใบหน้าคนในภาพจากกล้องหน้ารถเพื่อสแกนดูนะ');
     }
     if (file.subject === 'victim' && reportConversation.stage === 'awaiting-victim') {
       setShowBubble(true);
-      setCapriMessage('ชูม คลิกที่ใบหน้าของผู้เสียชีวิตในภาพเพื่อเริ่มสแกนได้เลย');
+      sayGuidance('ชูม คลิกที่ใบหน้าของผู้เสียชีวิตในภาพเพื่อเริ่มสแกนได้เลย');
     }
     if (file.subject === 'suspect' && reportConversation.stage !== 'awaiting-suspect') {
-      if (reportConversation.stage === 'awaiting-victim') setCapriMessage('เจ้าหน้าที่ขอชื่อผู้เสียชีวิตก่อนนะชูม ลองเปิดภาพผู้เสียชีวิตแล้วคลิกที่ใบหน้า');
+      if (reportConversation.stage === 'awaiting-victim') sayGuidance('เจ้าหน้าที่ขอชื่อผู้เสียชีวิตก่อนนะชูม ลองเปิดภาพผู้เสียชีวิตแล้วคลิกที่ใบหน้า');
       return true;
     }
     if (file.subject === 'suspect' && reportConversation.stage === 'awaiting-suspect') {
       setShowBubble(true);
-      setCapriMessage('ลองคลิกใบหน้าของบุคคลในภาพเพื่อสแกนดูนะชูม');
+      sayGuidance('ลองคลิกใบหน้าของบุคคลในภาพเพื่อสแกนดูนะชูม');
     }
     return true;
   };
@@ -308,23 +362,23 @@ export default function LinuxDesktop({
     setIsPerchedOnWindow(false);
     setShowBubble(true);
     if (guidedSequence.phase === 'review' && !(retry && question.mode === 'timeline')) {
-      setCapriMessage(guidedEvidenceResponse);
+      sayGuidance(guidedEvidenceResponse);
       return;
     }
     if (!documentsReleased) {
       setEvidenceMode('offer');
-      setCapriMessage('รอรับและตรวจเอกสารจากสายสืบให้เรียบร้อยก่อนนะชูม');
+      sayGuidance('รอรับและตรวจเอกสารจากสายสืบให้เรียบร้อยก่อนนะชูม');
       return;
     }
     if (!isFolderAvailable('Case_Documents')) {
       setEvidenceMode('offer');
-      setCapriMessage(folderLocation(folderLocations, 'Case_Documents') === 'trash' ? 'Case_Documents อยู่ในถังขยะ กู้คืนก่อนแล้วฉันจะช่วยตรวจเอกสารให้นะชูม' : 'ไม่พบ Case_Documents บนเดสก์ท็อป จึงตรวจเอกสารไม่ได้');
+      sayGuidance(folderLocation(folderLocations, 'Case_Documents') === 'trash' ? 'Case_Documents อยู่ในถังขยะ กู้คืนก่อนแล้วฉันจะช่วยตรวจเอกสารให้นะชูม' : 'ไม่พบ Case_Documents บนเดสก์ท็อป จึงตรวจเอกสารไม่ได้');
       return;
     }
     const files = getOpenedEvidence(followupFiles, question.requiredFiles);
     if (files.length !== question.requiredFiles.length) {
       setEvidenceMode('offer');
-      setCapriMessage('เอกสารที่ต้องใช้ยังไม่ครบ ลองตรวจสอบไฟล์อีกครั้งนะชูม');
+      sayGuidance('เอกสารที่ต้องใช้ยังไม่ครบ ลองตรวจสอบไฟล์อีกครั้งนะชูม');
       return;
     }
     setEvidenceMode('assisting');
@@ -341,20 +395,20 @@ export default function LinuxDesktop({
           setSelectedEvidenceIds([]);
           setGuidedEvidenceAnswer(formatTimelineReply(result.events));
           setGuidedEvidenceResponse('ฉันเรียงเหตุการณ์จากเอกสารแล้วชูม ดูรายละเอียดและหลักฐานอ้างอิงในหน้าลำดับเหตุการณ์ได้เลย');
-          setCapriMessage('ฉันเรียงเหตุการณ์จากเอกสารแล้วชูม ดูรายละเอียดและหลักฐานอ้างอิงในหน้าลำดับเหตุการณ์ แล้วเลือกส่งให้เจ้าหน้าที่ในสายได้เลย');
+          sayGuidance('ฉันเรียงเหตุการณ์จากเอกสารแล้วชูม ดูรายละเอียดและหลักฐานอ้างอิงในหน้าลำดับเหตุการณ์ แล้วเลือกส่งให้เจ้าหน้าที่ในสายได้เลย');
           setGuidedEvidenceVisible(true);
           setEvidenceMode('review');
           setGuidedSequence((state) => advanceGuidedSequence(state, 'success'));
         } else {
           setEvidenceMode('offer');
           setGuidedEvidenceVisible(true);
-          setCapriMessage(`${result.error} ถ้าชูมอยากหาเองก็บอกฉันได้เลยนะ`);
+          sayGuidance(`${result.error} ถ้าชูมอยากหาเองก็บอกฉันได้เลยนะ`);
         }
       } catch {
         setTimelineResult({ ok: false, error: 'ฉันสร้างไทม์ไลน์ไม่สำเร็จ ลองตรวจการตั้งค่า AI แล้วกดสร้างอีกครั้งนะชูม' });
         setEvidenceMode('offer');
         setGuidedEvidenceVisible(true);
-        setCapriMessage('ฉันสร้างไทม์ไลน์ไม่สำเร็จ ลองอีกครั้งหรือบอกฉันว่าจะหาเองได้นะชูม');
+        sayGuidance('ฉันสร้างไทม์ไลน์ไม่สำเร็จ ลองอีกครั้งหรือบอกฉันว่าจะหาเองได้นะชูม');
       } finally {
         setTimelineLoading(false);
         setIsThinking(false);
@@ -366,7 +420,7 @@ export default function LinuxDesktop({
     setCapriMessage('ได้เลยชูม ฉันกำลังตรวจเอกสารตามคำถามของสายสืบ...');
     try {
       const result = await askEvidenceBrainResult({ question: question.question, files });
-      setCapriMessage(result.message);
+      sayGuidance(result.message);
       if (result.ok) {
         setSelectedEvidenceIds([]);
         setGuidedEvidenceResponse(result.message);
@@ -379,7 +433,7 @@ export default function LinuxDesktop({
       onSendMessage(`คำถามของสายสืบ: ${question.question}`, result.message);
     } catch {
       setEvidenceMode('offer');
-      setCapriMessage('ฉันวิเคราะห์เอกสารไม่สำเร็จ ลองอีกครั้งหรือบอกฉันว่าจะหาเองได้นะชูม');
+      sayGuidance('ฉันวิเคราะห์เอกสารไม่สำเร็จ ลองอีกครั้งหรือบอกฉันว่าจะหาเองได้นะชูม');
     } finally {
       setIsThinking(false);
     }
@@ -423,7 +477,7 @@ export default function LinuxDesktop({
     }
     setGuidedEvidenceAnswer(result.answer);
     setGuidedEvidenceResponse('เลือกหลักฐานครบแล้วชูม ตรวจคำตอบในสายแล้วกดส่งให้ภัทรวัฒน์ได้เลย');
-    setCapriMessage('เลือกหลักฐานครบแล้วชูม ตรวจคำตอบในสายแล้วกดส่งให้ภัทรวัฒน์ได้เลย');
+    sayGuidance('เลือกหลักฐานครบแล้วชูม ตรวจคำตอบในสายแล้วกดส่งให้ภัทรวัฒน์ได้เลย');
     setGuidedEvidenceVisible(true);
     setShowBubble(true);
     setEvidenceMode('review');
@@ -431,25 +485,25 @@ export default function LinuxDesktop({
   };
 
   const handleSelectGuidedQuestion = () => {
-    if (guidedSequence.phase === 'review') { setShowBubble(true); setCapriMessage(guidedEvidenceResponse); return; }
+    if (guidedSequence.phase === 'review') { setShowBubble(true); sayGuidance(guidedEvidenceResponse); return; }
     if (guidedSequence.phase !== 'ready' || isThinking) return;
     setGuidedEvidenceVisible(true);
     setIsPerchedOnWindow(false);
     setShowBubble(true);
     setLastPlayerInput('');
-    if (evidenceMode === 'manual') setCapriMessage('ลองเปิด Case_Documents แล้วเลือกข้อความในกรอบที่ตอบคำถามนะชูม');
-    else { setEvidenceMode('offer'); setCapriMessage('ชูม ให้ฉันช่วยตรวจเอกสารเพื่อหาคำตอบสำหรับสายสืบไหม?'); }
+    if (evidenceMode === 'manual') sayGuidance('ลองเปิด Case_Documents แล้วเลือกข้อความในกรอบที่ตอบคำถามนะชูม');
+    else { setEvidenceMode('offer'); sayGuidance('ชูม ให้ฉันช่วยตรวจเอกสารเพื่อหาคำตอบสำหรับสายสืบไหม?'); }
   };
 
   useEffect(() => {
-    if (!hasIncomingCase || isMuted || isPoweredOff) return;
+    if (!hasIncomingCase || isMuted || isPoweredOff || isRingExpired(callRingDeadline)) return;
     const stop = playIncomingCaseSound();
     cancelCaseSoundRef.current = stop;
     return () => {
       stop();
       if (cancelCaseSoundRef.current === stop) cancelCaseSoundRef.current = null;
     };
-  }, [hasIncomingCase, isMuted, isPoweredOff]);
+  }, [hasIncomingCase, isMuted, isPoweredOff, callRingDeadline]);
 
   // อัปเดตนาฬิกา Linux Top Bar ทุก 1 วินาที
   useEffect(() => {
@@ -481,6 +535,13 @@ export default function LinuxDesktop({
       setCallMessages((messages) => [...messages, { speaker: entry.speaker || 'officer', text: entry.text, raw: entry.raw }, ...(entry.after === 'photo' ? [{ speaker: 'attachment' }] : []), ...(entry.after === 'documents' ? [{ speaker: 'documents' }] : []), ...(entry.after === 'dashcam' ? [{ speaker: 'dashcam' }] : [])]);
       setCallQueue((queue) => queue.slice(1));
       setTypedCount(0);
+      if (shouldCloseCallAfterMessage(entry)) {
+        setIsCallOpen(false);
+        setIsCallMinimized(false);
+        setUnreadPoliceMessage(false);
+        setShowPoliceNotice(false);
+        setActiveWindow((current) => current === 'call' ? null : current);
+      }
       if (entry.after === 'choose') setPoliceConversation('choosing');
       if (entry.after === 'callback-choice') setPoliceConversation('callback-choosing');
       if (entry.after === 'guided-question') {
@@ -492,6 +553,18 @@ export default function LinuxDesktop({
       if (entry.after === 'dashcam') { setDashcamAttachment((state) => advanceAttachment(state, 'upload')); setDashcamUploadProgress(0); }
       if (entry.after === 'ending') {
         setEndingStage((stage) => advanceEnding(stage, 'call-ended'));
+        setIsTerminalOpen(false);
+        setIsTerminalMinimized(false);
+        setIsExplorerOpen(false);
+        setIsExplorerMinimized(false);
+        setIsTrashOpen(false);
+        setIsTrashMinimized(false);
+        setIsScannerOpen(false);
+        setIsScannerMinimized(false);
+        setIsMainframeOpen(false);
+        setUtilityWindows((windows) => Object.fromEntries(Object.keys(windows).map((name) => [name, { open: false, minimized: false }])));
+        setReportSelection(null);
+        setActiveWindow(null);
         setGuidedEvidenceVisible(false);
         setIsPerchedOnWindow(false);
         setLastPlayerInput('');
@@ -511,12 +584,12 @@ export default function LinuxDesktop({
         setReportConversation((current) => advanceReportConversation(current, 'tick'));
         if (entry.raw === REPORT_SUSPECT_REQUEST) {
           setShowBubble(true);
-          setCapriMessage('ชูม กลับไปเปิดภาพบุคคลก่อนเกิดเหตุ แล้วคลิกที่ใบหน้าเพื่อสแกนได้เลย');
+          sayGuidance('ชูม กลับไปเปิดภาพบุคคลก่อนเกิดเหตุ แล้วคลิกที่ใบหน้าเพื่อสแกนได้เลย');
         }
       }
     }, writing ? 35 : (entry.delayAfter ?? 2000));
     return () => clearTimeout(timer);
-  }, [callQueue, typedCount, isPoweredOff, isCallMinimized, setAttachment, setCallMessages, setCallQueue, setCapriMessage, setDashcamAttachment, setDashcamUploadProgress, setEndingStage, setDocumentsAttachment, setDocumentsUploadProgress, setEvidenceMode, setGuidedEvidenceVisible, setGuidedSequence, setIsPerchedOnWindow, setLastPlayerInput, setPoliceConversation, setReportConversation, setSelectedEvidenceIds, setShowBubble, setUploadProgress]);
+  }, [callQueue, typedCount, isPoweredOff, isCallMinimized, sayGuidance, setActiveWindow, setAttachment, setCallMessages, setCallQueue, setCapriMessage, setDashcamAttachment, setDashcamUploadProgress, setEndingStage, setDocumentsAttachment, setDocumentsUploadProgress, setEvidenceMode, setGuidedEvidenceVisible, setGuidedSequence, setIsCallOpen, setIsCallMinimized, setIsTerminalOpen, setIsTerminalMinimized, setIsExplorerOpen, setIsExplorerMinimized, setIsTrashOpen, setIsTrashMinimized, setIsScannerOpen, setIsScannerMinimized, setIsPerchedOnWindow, setLastPlayerInput, setPoliceConversation, setReportConversation, setReportSelection, setSelectedEvidenceIds, setShowBubble, setShowPoliceNotice, setUnreadPoliceMessage, setUploadProgress, setUtilityWindows]);
 
   // The transfer and security scan are simulated game events; the image itself is loaded from the app.
   useEffect(() => {
@@ -561,10 +634,10 @@ export default function LinuxDesktop({
       setEndingStage((stage) => advanceEnding(stage, 'upload-complete'));
       setIsPerchedOnWindow(false);
       setShowBubble(true);
-      setCapriMessage('ตรวจไฟล์จากกล้องหน้ารถเรียบร้อยแล้วชูม เปิด Dashcam_Files บนเดสก์ท็อปเพื่อตรวจภาพได้เลย');
+      sayGuidance('ตรวจไฟล์จากกล้องหน้ารถเรียบร้อยแล้วชูม เปิด Dashcam_Files บนเดสก์ท็อปเพื่อตรวจภาพได้เลย');
     }, 2200);
     return () => clearTimeout(timer);
-  }, [isPoweredOff, dashcamAttachment.stage, setDashcamAttachment, setEndingStage, setIsPerchedOnWindow, setShowBubble, setCapriMessage]);
+  }, [isPoweredOff, dashcamAttachment.stage, sayGuidance, setDashcamAttachment, setEndingStage, setIsPerchedOnWindow, setShowBubble, setCapriMessage]);
 
   const handleOpenDashcam = async () => {
     if (dashcamReleased) { openFolder('Dashcam_Files'); return; }
@@ -601,10 +674,10 @@ export default function LinuxDesktop({
       const first = guidedEvidenceQuestions[0];
       setCallQueue([{ text: stripPolicePrefix(first.line), raw: first.line, after: 'guided-question' }]);
       setShowBubble(true);
-      setCapriMessage(`${cleaned ? 'ล้างไวรัสในเอกสารจำลองเรียบร้อยแล้ว' : 'ตรวจเอกสารแล้วไม่พบไวรัส'} เปิด Case_Documents บนเดสก์ท็อปเพื่ออ่านได้เลยนะชูม`);
+      sayGuidance(`${cleaned ? 'ล้างไวรัสในเอกสารจำลองเรียบร้อยแล้ว' : 'ตรวจเอกสารแล้วไม่พบไวรัส'} เปิด Case_Documents บนเดสก์ท็อปเพื่ออ่านได้เลยนะชูม`);
     }, 2200);
     return () => clearTimeout(timer);
-  }, [isPoweredOff, documentsAttachment.stage, setCallQueue, setCapriMessage, setDocumentsAttachment, setGuidedSequence, setShowBubble]);
+  }, [isPoweredOff, documentsAttachment.stage, sayGuidance, setCallQueue, setCapriMessage, setDocumentsAttachment, setGuidedSequence, setShowBubble]);
 
   useEffect(() => {
     if (isPoweredOff || !['scanning', 'cleaning'].includes(attachment.stage)) return;
@@ -623,10 +696,10 @@ export default function LinuxDesktop({
       setShowBubble(true);
       setLastPlayerInput('');
       setCapriAnim('talk');
-      setCapriMessage(`${cleaned ? 'ล้างไวรัสในไฟล์จำลองเรียบร้อยแล้ว' : 'ตรวจไฟล์แล้วไม่พบไวรัส'} ชูม! เราสแกนใบหน้าผู้เสียชีวิตให้สายสืบภัทรวัฒน์กันเถอะ เปิด Case_Files บนเดสก์ท็อป แล้วเลือกภาพผู้เสียชีวิตได้เลย`);
+      sayGuidance(`${cleaned ? 'ล้างไวรัสในไฟล์จำลองเรียบร้อยแล้ว' : 'ตรวจไฟล์แล้วไม่พบไวรัส'} ชูม! เราสแกนใบหน้าผู้เสียชีวิตให้สายสืบภัทรวัฒน์กันเถอะ เปิด Case_Files บนเดสก์ท็อป แล้วเลือกภาพผู้เสียชีวิตได้เลย`);
     }, 2200);
     return () => clearTimeout(timer);
-  }, [isPoweredOff, attachment.stage, setAnalysisPrompt, setAttachment, setCapriMessage, setHasDownloadedCaseFiles, setIsPerchedOnWindow, setLastPlayerInput, setReportConversation, setShowBubble]);
+  }, [isPoweredOff, attachment.stage, sayGuidance, setAnalysisPrompt, setAttachment, setCapriMessage, setHasDownloadedCaseFiles, setIsPerchedOnWindow, setLastPlayerInput, setReportConversation, setShowBubble]);
 
   const handleOpenAttachment = async () => {
     if (attachment.stage === 'complete') {
@@ -660,13 +733,13 @@ export default function LinuxDesktop({
       if (scanStage === 'scanning' && scanSubject === 'dashcam') {
         setScanStage('complete');
         setShowBubble(true);
-        setCapriMessage(`ชูม คนในภาพไม่ใช่กฤตภาส ผลตรวจพบชื่อ ${dashcamPerson.name} ลองค้นใน HumanDB แล้วส่งให้ภัทรวัฒน์นะ`);
+        sayGuidance(`ชูม คนในภาพไม่ใช่กฤตภาส ผลตรวจพบชื่อ ${dashcamPerson.name} ลองค้นใน HumanDB แล้วส่งให้ภัทรวัฒน์นะ`);
         return;
       }
       if (scanStage === 'scanning' && scanSubject === 'victim') {
         setScanStage('complete');
         setShowBubble(true);
-        setCapriMessage(`สแกนเสร็จแล้วชูม ระบบพบชื่อ ${cardHolderProfile.name} ลองค้นใน HumanDB แล้วส่งชื่อให้เจ้าหน้าที่นะ`);
+        sayGuidance(`สแกนเสร็จแล้วชูม ระบบพบชื่อ ${cardHolderProfile.name} ลองค้นใน HumanDB แล้วส่งชื่อให้เจ้าหน้าที่นะ`);
         return;
       }
       setScanStage(nextFaceScanStage(scanStage, 'finished'));
@@ -676,14 +749,14 @@ export default function LinuxDesktop({
         setShowBubble(true);
         setLastPlayerInput('');
         setCapriAnim('talk');
-        setCapriMessage('ภาพบุคคลอีกคนไม่ชัดเลยชูม เครื่องมือปกติสแกนไม่ได้ เดี๋ยวฉันลองใช้เครื่องมือที่ชูมเคยแฮกมาช่วยนะ เก็บเป็นความลับล่ะ');
+        sayGuidance('ภาพบุคคลอีกคนไม่ชัดเลยชูม เครื่องมือปกติสแกนไม่ได้ เดี๋ยวฉันลองใช้เครื่องมือที่ชูมเคยแฮกมาช่วยนะ เก็บเป็นความลับล่ะ');
       } else if (scanStage === 'analyzing') {
         setAnalysisPrompt('accepted');
-        setCapriMessage(`ฉันพบเบาะแสแล้วชูม! คนในภาพอาจเป็น ${cameraPerson.name} แต่ยังยืนยันไม่ได้ ลองค้นใน HumanDB แล้วส่งให้เจ้าหน้าที่ตรวจสอบต่อนะ`);
+        sayGuidance(`ฉันพบเบาะแสแล้วชูม! คนในภาพอาจเป็น ${cameraPerson.name} แต่ยังยืนยันไม่ได้ ลองค้นใน HumanDB แล้วส่งให้เจ้าหน้าที่ตรวจสอบต่อนะ`);
       }
     }, 3000);
     return () => clearTimeout(timer);
-  }, [scanStage, scanSubject, isScannerOpen, isScannerMinimized, isPoweredOff, setAnalysisPrompt, setCapriMessage, setIsPerchedOnWindow, setLastPlayerInput, setScanStage, setShowBubble]);
+  }, [scanStage, scanSubject, isScannerOpen, isScannerMinimized, isPoweredOff, sayGuidance, setAnalysisPrompt, setIsPerchedOnWindow, setLastPlayerInput, setScanStage, setShowBubble]);
 
   useEffect(() => {
     if (isPoweredOff || callQueue.length || !reportConversation.pending.length) return;
@@ -738,6 +811,9 @@ export default function LinuxDesktop({
       intertitleStartedAtRef.current = null;
       writeGameValue('intertitleStartedAt', null);
       setFollowupPhase((phase) => nextFollowupPhase(phase, 'elapsed'));
+      const ringDeadline = getRingDeadline(deadline);
+      writeGameValue('callRingDeadline', ringDeadline);
+      setCallRingDeadline(ringDeadline);
       setHasIncomingCase(true);
       setIsCallOpen(true);
       setIsCallMinimized(false);
@@ -745,7 +821,7 @@ export default function LinuxDesktop({
       setShowBubble(true);
       setCapriMessage('ชูม ภัทรวัฒน์ติดต่อกลับมาแล้ว');
     } });
-  }, [isPoweredOff, followupPhase, setActiveWindow, setCapriMessage, setFollowupPhase, setHasIncomingCase, setIsCallMinimized, setIsCallOpen, setShowBubble]);
+  }, [isPoweredOff, followupPhase, setActiveWindow, setCapriMessage, setFollowupPhase, setCallRingDeadline, setHasIncomingCase, setIsCallMinimized, setIsCallOpen, setShowBubble]);
 
   useEffect(() => {
     if (isPoweredOff || followupPhase !== 'intertitle' || intertitleTypedCount >= INTERTITLE_CHARACTERS.length) return;
@@ -804,9 +880,12 @@ export default function LinuxDesktop({
   }, [setShowBubble]);
 
   // เมื่อมีคนขอความช่วยเหลือเรื่องคดีมา (สายสืบภัทรวัฒน์ อนันต์กุลส่งเข้ามา)
-  const triggerIncomingCase = useCallback(() => {
+  const triggerIncomingCase = useCallback((startedAt = Date.now()) => {
     if (isPoweredOff || hasIncomingCase || gameState !== 'IDLE') return;
 
+    const deadline = getRingDeadline(startedAt);
+    writeGameValue('callRingDeadline', deadline);
+    setCallRingDeadline(deadline);
     setHasIncomingCase(true);
     setIsCallOpen(true);
     setIsCallMinimized(false);
@@ -821,7 +900,7 @@ export default function LinuxDesktop({
       setCapriAnim('talk');
       inputRef.current?.focus();
     }, 1000);
-  }, [hasIncomingCase, gameState, onIncomingCase, isPoweredOff, setActiveWindow, setCapriMessage, setHasIncomingCase, setIsCallMinimized, setIsCallOpen, setShowBubble]);
+  }, [hasIncomingCase, gameState, onIncomingCase, isPoweredOff, setActiveWindow, setCapriMessage, setCallRingDeadline, setHasIncomingCase, setIsCallMinimized, setIsCallOpen, setShowBubble]);
 
   // ฟังก์ชันเริ่มหรือรีเซ็ต Inactivity Timer
   // กฎ: ถ้ายังไม่ได้คุย หรือเมื่อชูมหยุดคุยไป 10 วินาที ให้แจ้งเตือนว่ามีคดีส่งมาจากสายสืบภัทรวัฒน์ อนันต์กุล
@@ -831,19 +910,22 @@ export default function LinuxDesktop({
 
   useEffect(() => {
     if (isPoweredOff || gameState !== 'IDLE' || hasIncomingCase) return;
-    return scheduleAtDeadline({ deadline: incomingDeadline, onDue: triggerIncomingCase });
+    return scheduleAtDeadline({ deadline: incomingDeadline, onDue: () => triggerIncomingCase(incomingDeadline) });
   }, [isPoweredOff, gameState, hasIncomingCase, incomingDeadline, triggerIncomingCase]);
 
   const handleAcceptCase = () => {
+    if (hasIncomingCase && isRingExpired(callRingDeadline)) { handleMissedCall(); return; }
     const returningCall = policeConversation === 'declined';
     cancelCaseSoundRef.current?.();
+    writeGameValue('callRingDeadline', null);
+    setCallRingDeadline(null);
     setHasIncomingCase(false);
     if (followupPhase === 'ringing') {
       setFollowupPhase((phase) => nextFollowupPhase(phase, 'answer'));
       setPoliceConversation(returningCall ? 'callback-greeting' : 'followup');
       setCallMessages([]);
       setTypedCount(0);
-      setCallQueue(returningCall ? [{ text: callbackGreeting, after: 'callback-choice' }] : followupIntroduction.map((text, index) => ({ text, after: index === followupIntroduction.length - 1 ? 'documents' : undefined })));
+      setCallQueue(returningCall ? [{ text: callEndReason === 'missed' ? missedCallbackGreeting : callbackGreeting, after: 'callback-choice' }] : followupIntroduction.map((text, index) => ({ text, after: index === followupIntroduction.length - 1 ? 'documents' : undefined })));
       setCapriMessage('รับสายแล้วชูม มาดูข้อมูลเพิ่มเติมจากภัทรวัฒน์กัน');
       openCall();
       return;
@@ -854,13 +936,17 @@ export default function LinuxDesktop({
     setPoliceConversation(returningCall ? 'callback-greeting' : 'greeting');
     setCallMessages([]);
     setTypedCount(0);
-    setCallQueue(returningCall ? [{ text: callbackGreeting, after: 'callback-choice' }] : callGreeting.map((text, index) => ({ text, after: index === callGreeting.length - 1 ? 'choose' : undefined })));
+    setCallQueue(returningCall ? [{ text: callEndReason === 'missed' ? missedCallbackGreeting : callbackGreeting, after: 'callback-choice' }] : callGreeting.map((text, index) => ({ text, after: index === callGreeting.length - 1 ? 'choose' : undefined })));
     openCall();
   };
 
   const handleDeclineCall = () => {
+    if (hasIncomingCase && isRingExpired(callRingDeadline)) { handleMissedCall(); return; }
     cancelCaseSoundRef.current?.();
+    writeGameValue('callRingDeadline', null);
+    setCallRingDeadline(null);
     setHasIncomingCase(false);
+    setCallEndReason('declined');
     setPoliceConversation('declined');
     setCapriAnim('talk');
     setCapriMessage('วางสายแล้วนะชูม ถ้าเปลี่ยนใจสามารถโทรกลับหาสายสืบได้');
@@ -878,9 +964,9 @@ export default function LinuxDesktop({
 
   const handleCallbackChoice = () => {
     if (policeConversation !== 'callback-choosing') return;
-    setCallMessages((messages) => [...messages, { speaker: 'you', text: callbackChoice }]);
+    setCallMessages((messages) => [...messages, { speaker: 'you', text: callEndReason === 'missed' ? missedCallbackChoice : callbackChoice }]);
     const isFollowup = followupPhase === 'active';
-    const lines = getCallbackContinuation(isFollowup);
+    const lines = getCallbackContinuation(isFollowup, callEndReason);
     setTypedCount(0);
     setCallQueue(lines.map((text, index) => ({ text, after: index === lines.length - 1 ? (isFollowup ? 'documents' : 'photo') : undefined })));
     setPoliceConversation(isFollowup ? 'followup' : 'briefing');
@@ -893,14 +979,14 @@ export default function LinuxDesktop({
   const handlePersonFound = (person) => {
     if (endingStage === 'awaiting-face' && scanSubject === 'dashcam' && scanStage === 'complete' && person.id === dashcamPerson.id) {
       setEndingStage((stage) => advanceEnding(stage, 'identified'));
-      setCapriMessage('พบอัศวกรแล้วชูม เขาเป็นเพื่อนร่วมงานของกฤตภาส เลือกส่งชื่อให้ภัทรวัฒน์ในสายได้เลย');
+      sayGuidance('พบอัศวกรแล้วชูม เขาเป็นเพื่อนร่วมงานของกฤตภาส เลือกส่งชื่อให้ภัทรวัฒน์ในสายได้เลย');
       setShowBubble(true);
       openCall();
       return;
     }
     if (!canOfferVictimReply(reportConversation.stage, scanSubject, scanStage, person.id)) return;
     setVictimReplyReady(true);
-    setCapriMessage('พบข้อมูลผู้เสียชีวิตแล้วชูม เลือกส่งชื่อให้สายสืบในสายได้เลย');
+    sayGuidance('พบข้อมูลผู้เสียชีวิตแล้วชูม เลือกส่งชื่อให้สายสืบในสายได้เลย');
     setShowBubble(true);
     openCall();
   };
@@ -911,7 +997,7 @@ export default function LinuxDesktop({
     setEndingStage((stage) => advanceEnding(stage, 'send-name'));
     setCallQueue([
       { text: 'ขอบคุณมากคุณเจ้าหน้าที่สายด่วน เราได้ตัวคนร้ายเพราะคุณเลย ไว้มีโอกาสผมจะเลี้ยงข้าวนะ' },
-      { speaker: 'system', text: '[สายสืบภัทรวัฒน์ อนันต์กุลได้ออกจากการสนทนา]', after: 'ending' },
+      { speaker: 'system', text: REPORT_END_MESSAGE, after: 'ending' },
     ]);
     openCall();
   };
@@ -919,6 +1005,8 @@ export default function LinuxDesktop({
   const handleClosingChoice = () => {
     if (endingStage !== 'apology') return;
     const reply = 'นั่นสินะชูม! ขอบคุณที่ทำงานอย่างหนักนะ';
+    finalScreenDeadlineRef.current = Date.now() + END_SCREEN_DELAY_MS;
+    writeGameValue('finalScreenDeadline', finalScreenDeadlineRef.current);
     setLastPlayerInput(endingReply);
     setCapriMessage(reply);
     setEndingStage((stage) => advanceEnding(stage, 'comfort'));
@@ -995,6 +1083,25 @@ export default function LinuxDesktop({
     setLastPlayerInput(text);
     setPlayerInput('');
 
+    if (isGuidanceRequest(text)) {
+      const reply = getNextStepGuidance({
+        gameState, hasIncomingCase, policeConversation, callEndReason, followupPhase,
+        callQueueLength: callQueue.length, isCallMinimized, reportStage: reportConversation.stage,
+        reportHasPending: reportConversation.pending.length > 0, reportSelection, victimReplyReady,
+        attachmentStage: attachment.stage, documentsStage: documentsAttachment.stage, dashcamStage: dashcamAttachment.stage,
+        guidedPhase: guidedSequence.phase, guidedQuestionId: currentGuidedQuestion?.id, evidenceMode, endingStage,
+        scanStage, scanSubject, isScannerOpen, isScannerMinimized,
+        knownPersonName: scanStage === 'complete' ? (scanSubject === 'dashcam' ? dashcamPerson.name : scanSubject === 'victim' ? cardHolderProfile.name : cameraPerson.name) : '',
+        caseFilesLocation: folderLocation(folderLocations, 'Case_Files'),
+        caseDocumentsLocation: folderLocation(folderLocations, 'Case_Documents'),
+        dashcamLocation: folderLocation(folderLocations, 'Dashcam_Files'),
+      });
+      setCapriAnim('talk');
+      sayGuidance(reply);
+      onSendMessage?.(text, reply);
+      return;
+    }
+
     if (guidedSequence.phase === 'ready' && ['offer', 'manual'].includes(evidenceMode)) {
       const offerReply = interpretEvidenceOffer(text);
       if (offerReply === 'decline') {
@@ -1002,7 +1109,7 @@ export default function LinuxDesktop({
         setEvidenceMode('manual');
         setGuidedEvidenceVisible(true);
         setCapriAnim('talk');
-        setCapriMessage(reply);
+        sayGuidance(reply);
         onSendMessage(text, reply);
         return;
       }
@@ -1017,7 +1124,7 @@ export default function LinuxDesktop({
     if (analysisReply === 'decline') {
       setAnalysisPrompt('manual-ready');
       setCapriAnim('talk');
-      setCapriMessage('โอเค งั้นคุณคลิกที่ใบหน้าของคนในภาพเพื่อสแกนหาเองได้เลยนะ');
+      sayGuidance('โอเค งั้นคุณคลิกที่ใบหน้าของคนในภาพเพื่อสแกนหาเองได้เลยนะ');
       return;
     }
     if (analysisReply === 'accept' && hasDownloadedCaseFiles) {
@@ -1177,6 +1284,10 @@ export default function LinuxDesktop({
 
   // คลิกทักทาย NIKI
   const handlePokeCapri = () => {
+    if (!showBubble) {
+      setShowBubble(true);
+      return;
+    }
     if (['download-offer', 'download-manual'].includes(policeConversation)) {
       setShowBubble(true);
       inputRef.current?.focus();
@@ -1199,7 +1310,7 @@ export default function LinuxDesktop({
       onDragOver={(event) => { if (!event.target.closest('[data-desktop-window]') && Array.from(event.dataTransfer.types).includes(TRASH_FOLDER_DRAG)) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }}
       onDrop={(event) => { if (event.target.closest('[data-desktop-window]')) return; const id = event.dataTransfer.getData(TRASH_FOLDER_DRAG); if (id) { event.preventDefault(); handleRestoreFolder(id); } }}
     >
-      <div className={isPoweredOff ? 'hidden' : 'contents'}>
+      <div className={isPoweredOff || showFinalScreen ? 'hidden' : 'contents'}>
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 pointer-events-none"></div>
       <DesktopTopBar
         openTerminal={openTerminal}
@@ -1216,7 +1327,7 @@ export default function LinuxDesktop({
         unreadPoliceMessage={unreadPoliceMessage}
       />
       <DesktopTaskbar
-        key={followupPhase === 'pending' ? 'before-transition' : 'after-transition'}
+        key={`${followupPhase === 'pending' ? 'before-transition' : 'after-transition'}-${endingStage === 'apology' ? 'ending' : 'playing'}`}
         currentDate={currentDate}
         currentTime={currentTime}
         isTerminalOpen={isTerminalOpen}
@@ -1290,11 +1401,12 @@ export default function LinuxDesktop({
         onDismissGuidedEvidence={() => { setGuidedEvidenceVisible(false); setCapriMessage('ได้เลยชูม มาคุยเล่นกันต่อเถอะ'); }}
         closingChoiceVisible={endingStage === 'apology'}
         onClosingChoice={handleClosingChoice}
+        onCloseBubble={() => setShowBubble(false)}
       />
       <PoliceCallWindow
         isOpen={isCallOpen} isMinimized={isCallMinimized}
         onActivate={() => setActiveWindow('call')} onMinimize={hideCall}
-        phase={hasIncomingCase ? 'ringing' : policeConversation} messages={callMessages}
+        phase={hasIncomingCase ? 'ringing' : policeConversation} callEndReason={callEndReason} messages={callMessages}
         typingText={callQueue.length ? splitCallText(callQueue[0].text).slice(0, typedCount).join('') : ''}
         isTyping={callQueue.length > 0} onAnswer={handleAcceptCase} onDecline={handleDeclineCall} onChoice={handlePoliceChoice}
         onCallbackChoice={handleCallbackChoice}
@@ -1318,6 +1430,7 @@ export default function LinuxDesktop({
         showBubble={showBubble}
         capriMessage={capriMessage}
         handlePokeCapri={handlePokeCapri}
+        onCloseBubble={() => setShowBubble(false)}
         getCapriSprite={getCapriSprite}
         cliScrollRef={cliScrollRef}
         cliHistory={cliHistory}
@@ -1383,8 +1496,9 @@ export default function LinuxDesktop({
         setIsPerchedOnWindow={setIsPerchedOnWindow}
       />
       </div>
-      {!isPoweredOff && followupPhase === 'intertitle' && <div role="status" aria-label="เวลาผ่านไป สำนักงานตำรวจแห่งชาติ กรุงเทพมหานคร 15:45 น." className="absolute inset-0 z-[90] bg-black text-white"><p aria-hidden="true" className="absolute bottom-10 left-8 h-[4.875em] whitespace-pre-line text-[24px] leading-relaxed">{INTERTITLE_CHARACTERS.slice(0, intertitleTypedCount).join('')}</p></div>}
+      {!isPoweredOff && !showFinalScreen && followupPhase === 'intertitle' && <div role="status" aria-label="เวลาผ่านไป สำนักงานตำรวจแห่งชาติ กรุงเทพมหานคร 15:45 น." className="absolute inset-0 z-[90] bg-black text-white"><p aria-hidden="true" className="absolute bottom-10 left-8 h-[4.875em] whitespace-pre-line text-[24px] leading-relaxed">{INTERTITLE_CHARACTERS.slice(0, intertitleTypedCount).join('')}</p></div>}
       {isPoweredOff && <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-[#03070c] px-6 text-center text-slate-300" aria-label="เครื่องปิดอยู่"><div className="font-mono text-xs tracking-[0.25em] text-slate-500">NIKI OS</div><div className="mt-3 text-lg font-semibold text-slate-300">เครื่องปิดอยู่</div><button type="button" autoFocus onClick={() => setIsPoweredOff(false)} className="mt-7 flex cursor-pointer items-center gap-2 rounded border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-semibold text-cyan-200 hover:border-cyan-700 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-cyan-400"><span aria-hidden="true" className="text-xl">⏻</span>เปิดเครื่อง</button></div>}
+      {!isPoweredOff && showFinalScreen && <div role="status" className="absolute inset-0 z-[110] flex items-center justify-center bg-black px-6 text-center text-[24px] font-medium text-white">โปรดติดตามตอนต่อไป</div>}
     </div>
   );
 }

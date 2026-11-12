@@ -6,6 +6,11 @@ export const REPORT_VICTIM_REQUEST = `${POLICE_PREFIX} ช่วยหาชื�
 export const REPORT_SUSPECT_REQUEST = `${POLICE_PREFIX} แล้วคนที่ยิงล่ะ คุณพอจะตรวจสอบได้ไหม`;
 export const REPORT_NAME_REQUEST = REPORT_SUSPECT_REQUEST;
 export const REPORT_ADDRESS_REQUEST = `${POLICE_PREFIX} ว่าแต่คุณมีที่อยู่ของเขาไหม`;
+export const REPORT_END_MESSAGE = '[สายสืบภัทรวัฒน์ อนันต์กุลได้ออกจากการสนทนา]';
+
+export function shouldCloseCallAfterMessage(entry) {
+  return entry?.speaker === 'system' && ((entry.after === 'report' && entry.raw === REPORT_END_MESSAGE) || (entry.after === 'ending' && entry.text === REPORT_END_MESSAGE));
+}
 
 export function getNikiConversationState(gameState, reportStage) {
   return gameState === 'ACTIVE' && reportStage === 'complete' ? 'CASE_CLOSED' : gameState;
@@ -32,7 +37,7 @@ export function advanceReportConversation(state, event) {
     stage: 'name-reply', pending: [`${POLICE_PREFIX} ขอบคุณครับ ผมจะนำชื่อนี้ไปตรวจสอบต่อ`, REPORT_ADDRESS_REQUEST],
   };
   if (state.stage === 'awaiting-address' && event === 'send-address') return {
-    stage: 'address-reply', pending: [`${POLICE_PREFIX} ขอบคุณมาก`, `${POLICE_PREFIX} ไว้ได้เรื่องยังไงผมจะติดต่อกลับมาใหม่`, '[สายสืบภัทรวัฒน์ อนันต์กุลได้ออกจากการสนทนา]'],
+    stage: 'address-reply', pending: [`${POLICE_PREFIX} ขอบคุณมาก`, `${POLICE_PREFIX} ไว้ได้เรื่องยังไงผมจะติดต่อกลับมาใหม่`, REPORT_END_MESSAGE],
   };
   if (event === 'tick' && state.pending.length) {
     const pending = state.pending.slice(1);

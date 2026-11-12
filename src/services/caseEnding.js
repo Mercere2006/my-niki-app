@@ -15,6 +15,7 @@ export const endingQueue = [
   { text: 'ผมกำลังส่งภาพจากกล้องให้คุณนะ รบกวนคุณช่วยตรวจสอบทีว่านั่นใช่กฤตภาสไหม', after: 'dashcam' },
 ];
 export const endingReply = 'ไม่เป็นไร NIKI ฉันว่าฉันต้องเขียนโปรแกรมสแกนใบหน้าให้แม่นยำขึ้นแล้วล่ะ';
+export const END_SCREEN_DELAY_MS = 3000;
 export function advanceEnding(stage, event) {
   return ({ idle: { 'questions-complete': 'awaiting-upload' }, 'awaiting-upload': { 'upload-complete': 'awaiting-face' }, 'awaiting-face': { identified: 'awaiting-name' }, 'awaiting-name': { 'send-name': 'closing' }, closing: { 'call-ended': 'apology' }, apology: { comfort: 'complete' } })[stage]?.[event] ?? stage;
 }
