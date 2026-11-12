@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import DesktopWindow from './DesktopWindow';
 import CctvImage from './CctvImage';
 import { cameraPerson, cardHolderProfile } from '../services/caseFiles';
@@ -6,17 +5,6 @@ import { dashcamPerson } from '../services/caseEnding';
 
 export default function FaceScannerWindow({ isOpen, isMinimized, isActive, onActivate, onMinimize, onClose, evidence, stage, subject = 'suspect', onOpenHumanDB }) {
   const person = subject === 'dashcam' ? dashcamPerson : subject === 'victim' ? cardHolderProfile : cameraPerson;
-  const [copyStatus, setCopyStatus] = useState(null);
-  const currentCopyStatus = copyStatus?.name === person.name ? copyStatus.status : null;
-  const copyName = async () => {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
-      await navigator.clipboard.writeText(person.name);
-      setCopyStatus({ name: person.name, status: 'copied' });
-    } catch {
-      setCopyStatus({ name: person.name, status: 'unavailable' });
-    }
-  };
   const status = {
     scanning: 'กำลังตรวจจับใบหน้า...',
     'low-quality': 'คุณภาพต่ำ // ภาพไม่ชัด',
@@ -55,7 +43,7 @@ export default function FaceScannerWindow({ isOpen, isMinimized, isActive, onAct
               {stage === 'scanning' && <p className="text-sm leading-relaxed text-emerald-300">กำลังค้นหาตำแหน่งใบหน้าในภาพจากกล้อง...</p>}
               {stage === 'low-quality' && <div className="space-y-3"><div className="font-mono text-sm font-bold text-rose-400">⚠ ภาพคุณภาพต่ำ</div><p className="text-xs leading-relaxed text-slate-300">ภาพจากกล้องมีความละเอียดต่ำเกินไป จึงยังระบุตัวบุคคลไม่ได้</p></div>}
               {stage === 'analyzing' && <div className="space-y-3"><div className="font-mono text-sm font-bold text-emerald-300">NIKI // กำลังวิเคราะห์</div><p className="text-xs leading-relaxed text-slate-300">กำลังจำลองการวิเคราะห์ภาพและค้นหาแฟ้มที่เกี่ยวข้อง...</p><div className="h-1 overflow-hidden bg-slate-800"><div className="h-full w-2/3 animate-pulse bg-emerald-400" /></div></div>}
-              {stage === 'complete' && <div className="space-y-3" role="status"><div className="border-b border-cyan-900 pb-2 font-mono text-xs font-bold text-cyan-300">HUMANDB // ผลตรวจสอบเบื้องต้น</div>{subject === 'dashcam' ? <div className="w-full max-w-64 border border-cyan-900"><CctvImage src={person.imageUrl} subject="dashcam" focused /></div> : <img src={person.imageUrl} alt="ภาพบุคคลในแฟ้มคดีสมมติ" className="block h-auto w-full max-w-64 border border-cyan-900" />}<div className="flex flex-wrap items-center gap-2"><span className="select-text cursor-text text-base font-bold text-white">{person.name}</span><button type="button" onClick={copyName} aria-label={`คัดลอกชื่อ ${person.name}`} className="rounded border border-cyan-800 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-950 focus-visible:outline-2 focus-visible:outline-cyan-400">{currentCopyStatus === 'copied' ? 'คัดลอกแล้ว' : 'คัดลอกชื่อ'}</button></div>{currentCopyStatus === 'unavailable' && <p className="text-xs text-amber-300">คัดลอกอัตโนมัติไม่ได้ เลือกชื่อแล้วกด Ctrl+C ได้เลย</p>}<p className="text-xs leading-relaxed text-slate-300">{subject === 'victim' ? `ระบบพบชื่อ ${person.name} ค้นใน HumanDB แล้วส่งชื่อให้เจ้าหน้าที่` : `ผลตรวจเบื้องต้นชี้ว่าบุคคลในภาพอาจเป็น ${person.name} ค้นใน HumanDB แล้วส่งเบาะแสให้เจ้าหน้าที่ตรวจสอบต่อ`}</p><button type="button" onClick={onOpenHumanDB} className="rounded border border-cyan-500 bg-cyan-950 px-3 py-2 text-xs font-bold text-cyan-100 hover:bg-cyan-900">เปิด HumanDB</button></div>}
+              {stage === 'complete' && <div className="space-y-3" role="status"><div className="border-b border-cyan-900 pb-2 font-mono text-xs font-bold text-cyan-300">HUMANDB // ผลตรวจสอบเบื้องต้น</div>{subject === 'dashcam' ? <div className="w-full max-w-64 border border-cyan-900"><CctvImage src={person.imageUrl} subject="dashcam" focused /></div> : <img src={person.imageUrl} alt="ภาพบุคคลในแฟ้มคดีสมมติ" className="block h-auto w-full max-w-64 border border-cyan-900" />}<div className="flex flex-wrap items-center gap-2"><span className="select-text cursor-text text-base font-bold text-white">{person.name}</span></div><p className="text-xs leading-relaxed text-slate-300">{subject === 'victim' ? `ระบบพบชื่อ ${person.name} ค้นใน HumanDB แล้วส่งชื่อให้เจ้าหน้าที่` : `ผลตรวจเบื้องต้นชี้ว่าบุคคลในภาพอาจเป็น ${person.name} ค้นใน HumanDB แล้วส่งเบาะแสให้เจ้าหน้าที่ตรวจสอบต่อ`}</p><button type="button" onClick={onOpenHumanDB} className="rounded border border-cyan-500 bg-cyan-950 px-3 py-2 text-xs font-bold text-cyan-100 hover:bg-cyan-900">เปิด HumanDB</button></div>}
             </div>
           </div>
         )}

@@ -19,18 +19,18 @@ describe('case ending', () => {
     assert.equal(advanceEnding('awaiting-face', 'send-name'), 'awaiting-face');
     assert.match(endingReply, /เขียนโปรแกรมสแกนใบหน้าให้แม่นยำขึ้น/);
   });
-  it('shows the final screen three seconds after the reply, keeping the deadline after refresh', () => {
-    assert.equal(END_SCREEN_DELAY_MS, 3000);
+  it('shows the final screen five seconds after the reply, keeping the deadline after refresh', () => {
+    assert.equal(END_SCREEN_DELAY_MS, 5000);
     const values = new Map();
     const storage = { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
     writeGameValue('finalScreenDeadline', 10000 + END_SCREEN_DELAY_MS, storage);
-    let now = 12000;
+    let now = 14000;
     let due = 0;
     let timer;
     const cancel = scheduleAtDeadline({ deadline: readGameValue('finalScreenDeadline', null, storage), onDue: () => due++, now: () => now, setTimer: (fn) => { timer = fn; return 1; }, clearTimer: () => {}, visibilityTarget: null, windowTarget: null });
     timer();
     assert.equal(due, 0);
-    now = 13000;
+    now = 15000;
     timer();
     assert.equal(due, 1);
     cancel();

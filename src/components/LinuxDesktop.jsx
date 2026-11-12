@@ -529,7 +529,7 @@ export default function LinuxDesktop({
     if (isPoweredOff || isCallMinimized || !callQueue.length) return;
     const entry = callQueue[0];
     const units = splitCallText(entry.text);
-    const writing = typedCount < units.length;
+    const writing = !entry.instant && typedCount < units.length;
     const timer = setTimeout(() => {
       if (writing) { setTypedCount((count) => count + 1); return; }
       setCallMessages((messages) => [...messages, { speaker: entry.speaker || 'officer', text: entry.text, raw: entry.raw }, ...(entry.after === 'photo' ? [{ speaker: 'attachment' }] : []), ...(entry.after === 'documents' ? [{ speaker: 'documents' }] : []), ...(entry.after === 'dashcam' ? [{ speaker: 'dashcam' }] : [])]);
@@ -996,8 +996,8 @@ export default function LinuxDesktop({
     setCallMessages((messages) => [...messages, { speaker: 'you', text: 'ไม่ใช่กฤตภาสครับ คนในภาพคือนายอัศวกร พรหมพิทักษ์' }]);
     setEndingStage((stage) => advanceEnding(stage, 'send-name'));
     setCallQueue([
-      { text: 'ขอบคุณมากคุณเจ้าหน้าที่สายด่วน เราได้ตัวคนร้ายเพราะคุณเลย ไว้มีโอกาสผมจะเลี้ยงข้าวนะ' },
-      { speaker: 'system', text: REPORT_END_MESSAGE, after: 'ending' },
+      { text: 'ขอบคุณมากคุณเจ้าหน้าที่สายด่วน เราได้ตัวคนร้ายเพราะคุณเลย ไว้มีโอกาสผมจะเลี้ยงข้าวนะ', delayAfter: 5000 },
+      { speaker: 'system', text: REPORT_END_MESSAGE, after: 'ending', instant: true, delayAfter: 0 },
     ]);
     openCall();
   };
