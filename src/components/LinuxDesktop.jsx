@@ -13,7 +13,7 @@ import { buildGuidedAnswerFile } from '../services/guidedAnswerFile';
 import { FOLLOWUP_DELAY_MS, INTERTITLE_MS, nextFollowupPhase, followupIntroduction, followupFiles, followupQuestions as guidedEvidenceQuestions, followupAcknowledgements, inspectSimulatedDocuments } from '../services/caseFollowup';
 import { dashcamFiles, dashcamPerson, endingQueue, endingReply, advanceEnding, END_SCREEN_DELAY_MS } from '../services/caseEnding';
 import { nextFaceScanStage } from '../services/faceScanFlow';
-import { initialReportConversation, advanceReportConversation, canMatchReportTarget, canOfferVictimReply, getNikiConversationState, isReportProfileEligible, shouldCloseCallAfterMessage, REPORT_END_MESSAGE, REPORT_SUSPECT_REQUEST } from '../services/reportConversation';
+import { initialReportConversation, advanceReportConversation, canMatchReportTarget, canOfferVictimReply, getNikiConversationState, isReportProfileEligible, isCallDepartureMessage, REPORT_END_MESSAGE, REPORT_SUSPECT_REQUEST } from '../services/reportConversation';
 import { useGameState } from '../hooks/useGameState';
 import { readGameValue, writeGameValue, scheduleAtDeadline } from '../services/gamePersistence';
 import { desktopFolders, folderLocation, moveFolderToTrash, restoreFolder, deleteFolderPermanently, TRASH_FOLDER_DRAG } from '../services/trash';
@@ -153,6 +153,7 @@ export default function LinuxDesktop({
   const cancelCaseSoundRef = useRef(null);
   const cancelGuidanceSoundRef = useRef(null);
   const followupDeadlineRef = useRef(null);
+  const endingDepartureDeadlineRef = useRef(null);
   const intertitleStartedAtRef = useRef(null);
   const finalScreenDeadlineRef = useRef(null);
   const guidedRequestRef = useRef(false);
@@ -510,19 +511,13 @@ export default function LinuxDesktop({
     if (isPoweredOff || isCallMinimized || !callQueue.length) return;
     const entry = callQueue[0];
     const units = splitCallText(entry.text);
-    const writing = !entry.instant && typedCount < units.length;
+    const isDeparture = isCallDepartureMessage(entry);
+    const writing = !isDeparture && !entry.instant && typedCount < units.length;
     const timer = setTimeout(() => {
       if (writing) { setTypedCount((count) => count + 1); return; }
       setCallMessages((messages) => [...messages, { speaker: entry.speaker || 'officer', text: entry.text, raw: entry.raw }, ...(entry.after === 'photo' ? [{ speaker: 'attachment' }] : []), ...(entry.after === 'documents' ? [{ speaker: 'documents' }] : []), ...(entry.after === 'dashcam' ? [{ speaker: 'dashcam' }] : [])]);
       setCallQueue((queue) => queue.slice(1));
       setTypedCount(0);
-      if (shouldCloseCallAfterMessage(entry)) {
-        setIsCallOpen(false);
-        setIsCallMinimized(false);
-        setUnreadPoliceMessage(false);
-        setShowPoliceNotice(false);
-        setActiveWindow((current) => current === 'call' ? null : current);
-      }
       if (entry.after === 'choose') setPoliceConversation('choosing');
       if (entry.after === 'callback-choice') setPoliceConversation('callback-choosing');
       if (entry.after === 'guided-question') {
@@ -532,25 +527,11 @@ export default function LinuxDesktop({
         setGuidedEvidenceVisible(false);
       }
       if (entry.after === 'dashcam') { setDashcamAttachment((state) => advanceAttachment(state, 'upload')); setDashcamUploadProgress(0); }
-      if (entry.after === 'ending') {
-        setEndingStage((stage) => advanceEnding(stage, 'call-ended'));
-        setIsTerminalOpen(false);
-        setIsTerminalMinimized(false);
-        setIsExplorerOpen(false);
-        setIsExplorerMinimized(false);
-        setIsTrashOpen(false);
-        setIsTrashMinimized(false);
-        setIsScannerOpen(false);
-        setIsScannerMinimized(false);
-        setIsMainframeOpen(false);
-        setUtilityWindows((windows) => Object.fromEntries(Object.keys(windows).map((name) => [name, { open: false, minimized: false }])));
-        setReportSelection(null);
-        setActiveWindow(null);
-        setGuidedEvidenceVisible(false);
-        setIsPerchedOnWindow(false);
-        setLastPlayerInput('');
-        setShowBubble(true);
-        setCapriMessage('ขอโทษด้วยนะชูม ที่ตอนแรกฉันสแกนหน้าแล้วผิดคน');
+      if (entry.after === 'ending' && isDeparture) {
+        const deadline = Date.now() + FOLLOWUP_DELAY_MS;
+        endingDepartureDeadlineRef.current = deadline;
+        writeGameValue('endingDepartureDeadline', deadline);
+        setEndingStage((stage) => advanceEnding(stage, 'officer-left'));
       }
       if (entry.after === 'documents') {
         setDocumentsAttachment((state) => advanceAttachment(state, 'upload'));
@@ -568,9 +549,45 @@ export default function LinuxDesktop({
           sayGuidance('ชูม กลับไปเปิดภาพบุคคลก่อนเกิดเหตุ แล้วคลิกที่ใบหน้าเพื่อสแกนได้เลย');
         }
       }
-    }, writing ? 35 : (entry.delayAfter ?? 2000));
+    }, writing ? 35 : isDeparture ? 0 : (entry.delayAfter ?? 2000));
     return () => clearTimeout(timer);
-  }, [callQueue, typedCount, isPoweredOff, isCallMinimized, sayGuidance, setActiveWindow, setAttachment, setCallMessages, setCallQueue, setCapriMessage, setDashcamAttachment, setDashcamUploadProgress, setEndingStage, setDocumentsAttachment, setDocumentsUploadProgress, setEvidenceMode, setGuidedEvidenceVisible, setGuidedSequence, setIsCallOpen, setIsCallMinimized, setIsTerminalOpen, setIsTerminalMinimized, setIsExplorerOpen, setIsExplorerMinimized, setIsTrashOpen, setIsTrashMinimized, setIsScannerOpen, setIsScannerMinimized, setIsPerchedOnWindow, setLastPlayerInput, setPoliceConversation, setReportConversation, setReportSelection, setSelectedEvidenceIds, setShowBubble, setShowPoliceNotice, setUnreadPoliceMessage, setUploadProgress, setUtilityWindows]);
+  }, [callQueue, typedCount, isPoweredOff, isCallMinimized, sayGuidance, setAttachment, setCallMessages, setCallQueue, setDashcamAttachment, setDashcamUploadProgress, setEndingStage, setDocumentsAttachment, setDocumentsUploadProgress, setEvidenceMode, setGuidedEvidenceVisible, setGuidedSequence, setPoliceConversation, setReportConversation, setSelectedEvidenceIds, setShowBubble, setUploadProgress]);
+
+  useEffect(() => {
+    if (isPoweredOff || endingStage !== 'departed') return;
+    let deadline = endingDepartureDeadlineRef.current ?? readGameValue('endingDepartureDeadline', null);
+    if (typeof deadline !== 'number' || !Number.isFinite(deadline)) {
+      deadline = Date.now() + FOLLOWUP_DELAY_MS;
+      endingDepartureDeadlineRef.current = deadline;
+      writeGameValue('endingDepartureDeadline', deadline);
+    }
+    return scheduleAtDeadline({ deadline, onDue: () => {
+      endingDepartureDeadlineRef.current = null;
+      writeGameValue('endingDepartureDeadline', null);
+      setIsCallOpen(false);
+      setIsCallMinimized(false);
+      setUnreadPoliceMessage(false);
+      setShowPoliceNotice(false);
+      setIsTerminalOpen(false);
+      setIsTerminalMinimized(false);
+      setIsExplorerOpen(false);
+      setIsExplorerMinimized(false);
+      setIsTrashOpen(false);
+      setIsTrashMinimized(false);
+      setIsScannerOpen(false);
+      setIsScannerMinimized(false);
+      setIsMainframeOpen(false);
+      setUtilityWindows((windows) => Object.fromEntries(Object.keys(windows).map((name) => [name, { open: false, minimized: false }])));
+      setReportSelection(null);
+      setActiveWindow(null);
+      setGuidedEvidenceVisible(false);
+      setIsPerchedOnWindow(false);
+      setLastPlayerInput('');
+      setShowBubble(true);
+      setCapriMessage('ขอโทษด้วยนะชูม ที่ตอนแรกฉันสแกนหน้าแล้วผิดคน');
+      setEndingStage((stage) => advanceEnding(stage, 'call-ended'));
+    } });
+  }, [isPoweredOff, endingStage, setIsCallOpen, setIsCallMinimized, setUnreadPoliceMessage, setShowPoliceNotice, setIsTerminalOpen, setIsTerminalMinimized, setIsExplorerOpen, setIsExplorerMinimized, setIsTrashOpen, setIsTrashMinimized, setIsScannerOpen, setIsScannerMinimized, setUtilityWindows, setReportSelection, setActiveWindow, setGuidedEvidenceVisible, setIsPerchedOnWindow, setLastPlayerInput, setShowBubble, setCapriMessage, setEndingStage]);
 
   // The transfer and security scan are simulated game events; the image itself is loaded from the app.
   useEffect(() => {
@@ -759,6 +776,7 @@ export default function LinuxDesktop({
       writeGameValue('followupDeadline', null);
       setIsCallOpen(false);
       setIsCallMinimized(false);
+      setUnreadPoliceMessage(false);
       setIsTerminalOpen(false);
       setIsTerminalMinimized(false);
       setIsExplorerOpen(false);
@@ -777,7 +795,7 @@ export default function LinuxDesktop({
       writeGameValue('intertitleStartedAt', intertitleStartedAtRef.current);
       setFollowupPhase((phase) => nextFollowupPhase(phase, 'elapsed'));
     } });
-  }, [isPoweredOff, reportConversation.stage, followupPhase, setActiveWindow, setFollowupPhase, setIsCallMinimized, setIsCallOpen, setIsExplorerMinimized, setIsExplorerOpen, setIsTrashOpen, setIsTrashMinimized, setIsPerchedOnWindow, setIsScannerMinimized, setIsScannerOpen, setIsTerminalMinimized, setIsTerminalOpen, setReportSelection, setShowPoliceNotice, setUtilityWindows]);
+  }, [isPoweredOff, reportConversation.stage, followupPhase, setActiveWindow, setFollowupPhase, setIsCallMinimized, setIsCallOpen, setIsExplorerMinimized, setIsExplorerOpen, setIsTrashOpen, setIsTrashMinimized, setIsPerchedOnWindow, setIsScannerMinimized, setIsScannerOpen, setIsTerminalMinimized, setIsTerminalOpen, setReportSelection, setShowPoliceNotice, setUnreadPoliceMessage, setUtilityWindows]);
 
   useEffect(() => {
     if (isPoweredOff || followupPhase !== 'intertitle') return;
@@ -977,7 +995,7 @@ export default function LinuxDesktop({
     setCallMessages((messages) => [...messages, { speaker: 'you', text: 'ไม่ใช่กฤตภาสครับ คนในภาพคือนายอัศวกร พรหมพิทักษ์' }]);
     setEndingStage((stage) => advanceEnding(stage, 'send-name'));
     setCallQueue([
-      { text: 'ขอบคุณมากคุณเจ้าหน้าที่สายด่วน เราได้ตัวคนร้ายเพราะคุณเลย ไว้มีโอกาสผมจะเลี้ยงข้าวนะ', delayAfter: 5000 },
+      { text: 'ขอบคุณมากคุณเจ้าหน้าที่สายด่วน เราได้ตัวคนร้ายเพราะคุณเลย ไว้มีโอกาสผมจะเลี้ยงข้าวนะ', delayAfter: 0 },
       { speaker: 'system', text: REPORT_END_MESSAGE, after: 'ending', instant: true, delayAfter: 0 },
     ]);
     openCall();
@@ -1380,7 +1398,7 @@ export default function LinuxDesktop({
         onActivate={() => setActiveWindow('call')} onMinimize={hideCall}
         phase={hasIncomingCase ? 'ringing' : policeConversation} callEndReason={callEndReason} messages={callMessages}
         typingText={callQueue.length ? splitCallText(callQueue[0].text).slice(0, typedCount).join('') : ''}
-        isTyping={callQueue.length > 0} onAnswer={handleAcceptCase} onDecline={handleDeclineCall} onChoice={handlePoliceChoice}
+        isTyping={callQueue.length > 0 && !isCallDepartureMessage(callQueue[0])} onAnswer={handleAcceptCase} onDecline={handleDeclineCall} onChoice={handlePoliceChoice}
         onCallbackChoice={handleCallbackChoice}
         attachment={attachment} uploadProgress={uploadProgress} onOpenPhoto={handleOpenAttachment}
         reportStage={reportConversation.stage} onSelectReportRequest={handleSelectReportRequest}

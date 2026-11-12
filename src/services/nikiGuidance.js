@@ -37,6 +37,7 @@ export function getNextStepGuidance(context = {}) {
   if (context.followupPhase === 'active') {
     if (context.endingStage === 'complete') return 'คดีนี้ส่งให้ภัทรวัฒน์เรียบร้อยแล้วชูม ตอนนี้คุยเล่นกับฉันได้เลย';
     if (context.endingStage === 'apology') return 'กดตัวเลือกในกล่องข้อความของฉันได้เลยนะชูม';
+    if (context.endingStage === 'departed') return 'สายสืบออกจากการสนทนาแล้ว รอสักครู่นะชูม';
     if (context.endingStage === 'closing') return 'รอภัทรวัฒน์ตอบกลับในสายอีกสักครู่นะชูม';
     if (context.endingStage === 'awaiting-name') return 'พบแฟ้มที่ต้องการแล้วชูม เปิดสายสนทนาแล้วกดส่งชื่อให้ภัทรวัฒน์ได้เลย';
     if (context.endingStage === 'awaiting-upload') return attachmentHint(context.dashcamStage, 'Dashcam_Files');

@@ -8,7 +8,7 @@ export const REPORT_NAME_REQUEST = REPORT_SUSPECT_REQUEST;
 export const REPORT_ADDRESS_REQUEST = `${POLICE_PREFIX} ว่าแต่คุณมีที่อยู่ของเขาไหม`;
 export const REPORT_END_MESSAGE = '[สายสืบภัทรวัฒน์ อนันต์กุลได้ออกจากการสนทนา]';
 
-export function shouldCloseCallAfterMessage(entry) {
+export function isCallDepartureMessage(entry) {
   return entry?.speaker === 'system' && ((entry.after === 'report' && entry.raw === REPORT_END_MESSAGE) || (entry.after === 'ending' && entry.text === REPORT_END_MESSAGE));
 }
 

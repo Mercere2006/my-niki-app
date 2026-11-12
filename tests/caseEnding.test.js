@@ -14,7 +14,11 @@ describe('case ending', () => {
   });
   it('requires the new evidence to be identified before closing the call', () => {
     let state = 'idle';
-    for (const event of ['questions-complete', 'upload-complete', 'identified', 'send-name', 'call-ended', 'comfort']) state = advanceEnding(state, event);
+    for (const event of ['questions-complete', 'upload-complete', 'identified', 'send-name', 'officer-left']) state = advanceEnding(state, event);
+    assert.equal(state, 'departed');
+    state = advanceEnding(state, 'call-ended');
+    assert.equal(state, 'apology');
+    state = advanceEnding(state, 'comfort');
     assert.equal(state, 'complete');
     assert.equal(advanceEnding('awaiting-face', 'send-name'), 'awaiting-face');
     assert.match(endingReply, /เขียนโปรแกรมสแกนใบหน้าให้แม่นยำขึ้น/);

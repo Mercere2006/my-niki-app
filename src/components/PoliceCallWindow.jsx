@@ -7,7 +7,7 @@ export default function PoliceCallWindow({ isOpen, isMinimized, isActive, onActi
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, typingText, phase]);
   const ringing = phase === 'ringing';
   const declined = phase === 'declined';
-  const closed = ['apology', 'complete'].includes(endingStage) || isOfficerOffline(reportStage, isFollowupCall, phase);
+  const closed = ['departed', 'apology', 'complete'].includes(endingStage) || isOfficerOffline(reportStage, isFollowupCall, phase);
   if (!isOpen || isMinimized) return null;
   return (
     <aside aria-label="สายของสายสืบภัทรวัฒน์ อนันต์กุล" onPointerDown={onActivate} className={`absolute bottom-11 right-0 top-8 z-[44] flex w-[var(--call-sidebar-width)] flex-col overflow-hidden border-l border-cyan-700/70 bg-[#031522] shadow-[-8px_0_25px_rgba(0,0,0,0.35)] ${isActive ? '' : 'max-sm:hidden'}`}>
