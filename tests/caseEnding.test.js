@@ -5,8 +5,21 @@ import { advanceGuidedSequence } from '../src/services/guidedEvidence.js';
 import { endingQueue, endingReply, advanceEnding, END_SCREEN_DELAY_MS } from '../src/services/caseEnding.js';
 import { migrateFollowup } from '../src/services/migrateFollowup.js';
 import { scheduleAtDeadline, readGameValue, writeGameValue } from '../src/services/gamePersistence.js';
+import { TYPEWRITER_INTERVAL_MS, getTypedCount } from '../src/services/typewriter.js';
+import { splitCallText } from '../src/services/policeCall.js';
 
 describe('case ending', () => {
+  it('reveals Thai text one grapheme at a time and resumes according to elapsed time', () => {
+    const letters = splitCallText('โปรดติดตามตอนต่อไป');
+    assert.equal(TYPEWRITER_INTERVAL_MS, 65);
+    assert.equal(getTypedCount(1000, 1000, letters.length), 0);
+    assert.equal(getTypedCount(1000, 1065, letters.length), 1);
+    assert.equal(getTypedCount(1000, 1000 + 65 * 5, letters.length), 5);
+    assert.equal(getTypedCount(1000, 100000, letters.length), letters.length);
+    assert.equal(getTypedCount(1000, 900, letters.length), 0);
+    assert.equal(getTypedCount(null, 1000, letters.length), letters.length);
+    assert.equal(letters.join(''), 'โปรดติดตามตอนต่อไป');
+  });
   it('finishes after the two remaining questions', () => {
     assert.deepEqual(advanceGuidedSequence({ index: 1, phase: 'review' }, 'continue', followupQuestions.length), { index: 1, phase: 'complete' });
     assert.equal(endingQueue[0].delayAfter, 3000);

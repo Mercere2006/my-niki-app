@@ -19,6 +19,8 @@ import { readGameValue, writeGameValue, scheduleAtDeadline } from '../services/g
 import { desktopFolders, folderLocation, moveFolderToTrash, restoreFolder, deleteFolderPermanently, TRASH_FOLDER_DRAG } from '../services/trash';
 import { isGuidanceRequest, getNextStepGuidance } from '../services/nikiGuidance';
 import { playNikiGuidanceSound } from '../services/nikiGuidanceSound';
+import { TYPEWRITER_INTERVAL_MS, getTypedCount } from '../services/typewriter';
+import { createTypewriterSound } from '../services/typewriterSound';
 import DesktopTopBar from './DesktopTopBar';
 import DesktopTaskbar from './DesktopTaskbar';
 import PoliceCallWindow from './PoliceCallWindow';
@@ -50,7 +52,8 @@ const CAPRI_POKE_QUOTES = [
 
 const INTERTITLE_TEXT = 'สำนักงานตำรวจแห่งชาติ\nกรุงเทพมหานคร\n15:45 น.';
 const INTERTITLE_CHARACTERS = splitCallText(INTERTITLE_TEXT);
-const INTERTITLE_TYPING_INTERVAL_MS = 65;
+const FINAL_SCREEN_TEXT = 'โปรดติดตามตอนต่อไป';
+const FINAL_SCREEN_CHARACTERS = splitCallText(FINAL_SCREEN_TEXT);
 const restoreAttachment = (value) => value.stage === 'checking' ? { ...value, stage: 'error' } : value;
 const restoreNikiMessage = (value) => /กำลังประมวลผลผ่าน Relic Biochip|ฉันกำลังตรวจเอกสารตามคำถาม/.test(value) ? 'การวิเคราะห์ก่อนรีเฟรชหยุดไปแล้ว ลองส่งคำถามอีกครั้งนะชูม' : value;
 const restoreEvidenceMode = (value) => value === 'assisting' ? 'offer' : value;
@@ -75,6 +78,7 @@ export default function LinuxDesktop({
   const [dashcamUploadProgress, setDashcamUploadProgress] = useGameState('dashcamUploadProgress', 0);
   const [endingStage, setEndingStage] = useGameState('endingStage', 'idle');
   const [showFinalScreen, setShowFinalScreen] = useGameState('showFinalScreen', false);
+  const [finalTypedCount, setFinalTypedCount] = useState(() => showFinalScreen ? getTypedCount(readGameValue('finalScreenStartedAt', null), Date.now(), FINAL_SCREEN_CHARACTERS.length) : 0);
   const dashcamReleased = dashcamAttachment.stage === 'complete';
   const [followupPhase, setFollowupPhase] = useGameState('followupPhase', 'pending');
   const [intertitleTypedCount, setIntertitleTypedCount] = useGameState('intertitleTypedCount', 0);
@@ -99,6 +103,7 @@ export default function LinuxDesktop({
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [isMuted, setIsMuted] = useGameState('isMuted', false);
+  const [typewriterSound] = useState(createTypewriterSound);
 
   // NIKI Companion States (Project NIKI - Thai & Sandboxed to Web)
   const [capriAnim, setCapriAnim] = useState('perch'); // 'perch' | 'idle' | 'talk' | 'glitch' | 'sleep' | 'perch-music' | 'tossed'
@@ -156,6 +161,7 @@ export default function LinuxDesktop({
   const endingDepartureDeadlineRef = useRef(null);
   const intertitleStartedAtRef = useRef(null);
   const finalScreenDeadlineRef = useRef(null);
+  const typingCountsRef = useRef({ intertitle: intertitleTypedCount, final: finalTypedCount });
   const guidedRequestRef = useRef(false);
   const sayGuidance = useCallback((message) => {
     setCapriMessage(message);
@@ -168,6 +174,21 @@ export default function LinuxDesktop({
   }, [isMuted, isPoweredOff]);
   useEffect(() => () => cancelGuidanceSoundRef.current?.(), []);
   useEffect(() => {
+    const previous = typingCountsRef.current;
+    const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden';
+    if (!isPoweredOff && !showFinalScreen && followupPhase === 'intertitle') {
+      typewriterSound.play({ previousCount: previous.intertitle, currentCount: intertitleTypedCount, muted: isMuted, visible });
+    } else if (!isPoweredOff && showFinalScreen) {
+      typewriterSound.play({ previousCount: previous.final, currentCount: finalTypedCount, muted: isMuted, visible });
+    } else {
+      typewriterSound.stop();
+    }
+    if (isMuted || isPoweredOff || !visible) typewriterSound.stop();
+    previous.intertitle = intertitleTypedCount;
+    previous.final = finalTypedCount;
+  }, [followupPhase, showFinalScreen, intertitleTypedCount, finalTypedCount, isMuted, isPoweredOff, typewriterSound]);
+  useEffect(() => () => typewriterSound.stop(), [typewriterSound]);
+  useEffect(() => {
     if (endingStage !== 'complete' || showFinalScreen || isPoweredOff) return;
     let deadline = finalScreenDeadlineRef.current ?? readGameValue('finalScreenDeadline', null);
     if (typeof deadline !== 'number' || !Number.isFinite(deadline)) {
@@ -178,10 +199,19 @@ export default function LinuxDesktop({
     return scheduleAtDeadline({ deadline, onDue: () => {
       finalScreenDeadlineRef.current = null;
       writeGameValue('finalScreenDeadline', null);
+      writeGameValue('finalScreenStartedAt', deadline);
       writeGameValue('showFinalScreen', true);
       setShowFinalScreen(true);
     } });
   }, [endingStage, showFinalScreen, isPoweredOff, setShowFinalScreen]);
+  useEffect(() => {
+    if (!showFinalScreen || isPoweredOff || finalTypedCount >= FINAL_SCREEN_CHARACTERS.length) return;
+    const startedAt = readGameValue('finalScreenStartedAt', null);
+    const timer = setTimeout(() => {
+      setFinalTypedCount((count) => Math.max(count, getTypedCount(startedAt, Date.now(), FINAL_SCREEN_CHARACTERS.length)));
+    }, TYPEWRITER_INTERVAL_MS);
+    return () => clearTimeout(timer);
+  }, [showFinalScreen, isPoweredOff, finalTypedCount]);
   const handleMissedCall = useCallback(() => {
     cancelCaseSoundRef.current?.();
     writeGameValue('callRingDeadline', null);
@@ -805,7 +835,7 @@ export default function LinuxDesktop({
       writeGameValue('intertitleStartedAt', startedAt);
     }
     intertitleStartedAtRef.current = startedAt;
-    const deadline = startedAt + INTERTITLE_CHARACTERS.length * INTERTITLE_TYPING_INTERVAL_MS + INTERTITLE_MS;
+    const deadline = startedAt + INTERTITLE_CHARACTERS.length * TYPEWRITER_INTERVAL_MS + INTERTITLE_MS;
     return scheduleAtDeadline({ deadline, onDue: () => {
       intertitleStartedAtRef.current = null;
       writeGameValue('intertitleStartedAt', null);
@@ -826,9 +856,9 @@ export default function LinuxDesktop({
     if (isPoweredOff || followupPhase !== 'intertitle' || intertitleTypedCount >= INTERTITLE_CHARACTERS.length) return;
     const timer = setTimeout(() => {
       const startedAt = intertitleStartedAtRef.current ?? Date.now();
-      const elapsedCount = Math.floor((Date.now() - startedAt) / INTERTITLE_TYPING_INTERVAL_MS);
+      const elapsedCount = Math.floor((Date.now() - startedAt) / TYPEWRITER_INTERVAL_MS);
       setIntertitleTypedCount((count) => Math.min(INTERTITLE_CHARACTERS.length, Math.max(count + 1, elapsedCount)));
-    }, INTERTITLE_TYPING_INTERVAL_MS);
+    }, TYPEWRITER_INTERVAL_MS);
     return () => clearTimeout(timer);
   }, [isPoweredOff, followupPhase, intertitleTypedCount, setIntertitleTypedCount]);
 
@@ -1489,7 +1519,7 @@ export default function LinuxDesktop({
       </div>
       {!isPoweredOff && !showFinalScreen && followupPhase === 'intertitle' && <div role="status" aria-label="เวลาผ่านไป สำนักงานตำรวจแห่งชาติ กรุงเทพมหานคร 15:45 น." className="absolute inset-0 z-[90] bg-black text-white"><p aria-hidden="true" className="absolute bottom-10 left-8 h-[4.875em] whitespace-pre-line text-[24px] leading-relaxed">{INTERTITLE_CHARACTERS.slice(0, intertitleTypedCount).join('')}</p></div>}
       {isPoweredOff && <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-[#03070c] px-6 text-center text-slate-300" aria-label="เครื่องปิดอยู่"><div className="font-mono text-xs tracking-[0.25em] text-slate-500">NIKI OS</div><div className="mt-3 text-lg font-semibold text-slate-300">เครื่องปิดอยู่</div><button type="button" autoFocus onClick={() => setIsPoweredOff(false)} className="mt-7 flex cursor-pointer items-center gap-2 rounded border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-semibold text-cyan-200 hover:border-cyan-700 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-cyan-400"><span aria-hidden="true" className="text-xl">⏻</span>เปิดเครื่อง</button></div>}
-      {!isPoweredOff && showFinalScreen && <div role="status" className="absolute inset-0 z-[110] flex items-center justify-center bg-black px-6 text-center text-[24px] font-medium text-white">โปรดติดตามตอนต่อไป</div>}
+      {!isPoweredOff && showFinalScreen && <div role="status" aria-label={FINAL_SCREEN_TEXT} className="absolute inset-0 z-[110] flex items-center justify-center bg-black px-6 text-center text-[24px] font-medium text-white"><span aria-hidden="true">{FINAL_SCREEN_CHARACTERS.slice(0, finalTypedCount).join('')}</span></div>}
     </div>
   );
 }
